@@ -82,6 +82,11 @@ const Header = () => {
               <FaSignOutAlt /> Logout
             </Link>
           </AsideItem>
+          <AsideItem>
+            <Link to="/filiais">
+              <FaSignOutAlt /> Filiais
+            </Link>
+          </AsideItem>
         </AsideMenu>
       </Aside>
 

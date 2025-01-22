@@ -8,22 +8,77 @@ export const Container = styled.div`
   color: #1e293b;
 `;
 
-export const FileInputContainer = styled.div`
+export const ModalContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
-
-  input[type="file"] {
-    margin: 10px 0;
-  }
-
-  span {
-    font-size: 12px;
-    color: #666;
-  }
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
 `;
 
+export const ModalContent = styled.div`
+  background: #ffffff; /* Cor de fundo branca */
+  padding: 40px; /* Maior padding para espaçamento interno */
+  border-radius: 12px; /* Bordas mais arredondadas */
+  width: 100%;
+  max-width: 1000px; /* Largura máxima maior */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* Sombra mais suave e realista */
+  max-height: 90vh; /* Altura máxima do modal */
+  overflow-y: auto; /* Rola o conteúdo quando exceder a altura */
+  display: flex;
+  flex-direction: column; /* Alinhamento flexível interno */
+  gap: 20px; /* Espaçamento entre os elementos */
 
+  h2 {
+    font-size: 1.8rem; /* Tamanho maior do título */
+    font-weight: 600;
+    color: #1e293b; /* Cor escura para o título */
+    margin-bottom: 20px; /* Espaço inferior */
+    text-align: center; /* Centralizar o título */
+  }
+
+  button {
+    margin-top: 20px;
+    width: 100%;
+    max-width: 250px; /* Botões maiores */
+    padding: 12px 20px; /* Mais espaçamento nos botões */
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #2563eb; /* Cor azul */
+    border: none;
+    border-radius: 8px; /* Bordas arredondadas */
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      background-color: #1d4ed8;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    &:active {
+      background-color: #1e40af;
+    }
+  }
+
+  /* Ajustes para dispositivos móveis */
+  @media (max-width: 768px) {
+    max-width: 90%; /* Reduz a largura máxima em tablets */
+    padding: 30px;
+  }
+
+  @media (max-width: 480px) {
+    max-width: 95%; /* Reduz a largura máxima em smartphones */
+    padding: 20px;
+  }
+`;
 
 export const SuggestionsList = styled.ul`
   list-style-type: none;
@@ -99,55 +154,34 @@ export const SearchBar = styled.input`
   }
 `;
 
-// Container da imagem
-export const ImageContainer = styled.div`
+export const AddProductForm = styled.div`
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 15px;
-  border: 2px dashed #3498db;
-  border-radius: 10px;
-  background-color: #f0f8ff;
-`;
-
-
-// Estilo da imagem
-export const ImagePreview = styled.img`
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 8px;
-`;
-export const AddProductForm = styled.form`
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 15px;
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
+  margin-bottom: 30px;
+  background: #ffffff;
   padding: 20px;
-  background-color: #f9f9f9;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 `;
-// Estilo para os inputs
+
 export const Input = styled.input`
-  padding: 10px;
-  border: 2px solid #ddd;
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 15px;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  font-size: 14px;
-  outline: none;
+  font-size: 1rem;
+  color: #1e293b;
+  background: #f9fafb;
   transition: all 0.3s ease;
 
   &:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 `;
-
-
 
 export const Button = styled.button`
   background: #2563eb;
@@ -160,7 +194,6 @@ export const Button = styled.button`
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-bottom: 8px;
 
   &:hover {
     background: #1d4ed8;
@@ -171,83 +204,6 @@ export const Button = styled.button`
     background: #1e40af;
   }
 `;
-
-// Botão de remover imagem
-export const RemoveImageButton = styled(Button)`
-  background-color: #e74c3c;
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-
-  &:hover {
-    background-color: #c0392b;
-  }
-`;
-
-
-// Modal Container
-export const ModalContainer = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4); /* Cor mais suave para o fundo */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-`;
-
-// Modal Content
-export const ModalContent = styled.div`
-  background-color: #ffffff;
-  padding: 30px;
-  width: 90%;
-  max-width: 650px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  position: relative;
-  animation: fadeIn 0.4s ease;
-  max-height: 90vh;  /* Para manter o modal dentro da tela */
-  overflow-y: auto;
-
-  @keyframes fadeIn {
-    0% {
-      opacity: 0;
-      transform: translateY(-30px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-`;
-
-// Modal Close Button
-export const CloseButton = styled.button`
-  background-color: transparent;
-  border: none;
-  font-size: 28px;
-  color: #333;
-  cursor: pointer;
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  transition: transform 0.3s ease;
-
-  &:hover {
-    color: #ff6347; /* Cor mais viva quando passar o mouse */
-    transform: scale(1.2); /* Um efeito de escala suave */
-  }
-`;
-
-
 
 export const Table = styled.table`
   width: 100%;

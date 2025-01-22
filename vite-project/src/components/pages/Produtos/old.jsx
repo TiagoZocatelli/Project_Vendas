@@ -57,33 +57,21 @@ const Produtos = () => {
 
 
   const uploadProductImage = async (productId) => {
-    if (!selectedImage) {
-      console.log("Nenhuma imagem selecionada.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("imagem", selectedImage);
-
-    try {
-      console.log("Enviando imagem:", selectedImage.name);
-      console.log("ID do produto:", productId);
-
-      const response = await api.put(`/produtos/${productId}/imagem`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      console.log("Resposta da API (Upload Imagem):", response.data);
-      showMessage("Imagem atualizada com sucesso!");
-    } catch (error) {
-      console.error("Erro ao enviar imagem:", error.response || error.message);
-      showMessage("Erro ao enviar imagem.", "error");
+    if (selectedImage) {
+      const formData = new FormData();
+      formData.append("imagem", selectedImage);
+      try {
+        await api.put(`/produtos/${productId}/imagem`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        showMessage("Imagem atualizada com sucesso!");
+        fetchProducts(); // Atualiza os produtos para refletir a imagem
+      } catch (error) {
+        console.error("Erro ao enviar imagem:", error);
+        showMessage("Erro ao enviar imagem.", "error");
+      }
     }
   };
-
-
-
-
 
   const removeImage = async (productId) => {
     try {
@@ -149,45 +137,38 @@ const Produtos = () => {
   };
 
   const addOrUpdateProduct = async () => {
-    console.log("Método addOrUpdateProduct foi chamado.");
     try {
-      let productId = null;
-
       if (editingIndex !== null) {
-        productId = products[editingIndex].id;
-        console.log("Atualizando produto com ID:", productId);
-        await api.put(`/produtos/${productId}`, {
+        // Atualiza o produto
+        await api.put(`/produtos/${products[editingIndex].id}`, {
           ...newProduct,
           margem: calculateMargin(),
         });
         showMessage("Produto atualizado com sucesso!");
+
+        if (selectedImage) {
+          await uploadProductImage(products[editingIndex].id);
+        }
       } else {
+        // Cria novo produto
         const response = await api.post("/produtos", {
           ...newProduct,
           margem: calculateMargin(),
         });
-        productId = response.data.id;
-        console.log("Produto criado com ID:", productId);
         showMessage("Produto adicionado com sucesso!");
-      }
 
-      if (selectedImage) {
-        console.log("Chamando uploadProductImage...");
-        await uploadProductImage(productId);
-      } else {
-        console.log("Nenhuma imagem foi selecionada.");
+        if (selectedImage) {
+          await uploadProductImage(response.data.id);
+        }
       }
-
       fetchProducts();
       resetForm();
-      setIsModalOpen(false);
+      setIsModalOpen(false); // Fecha o modal após a operação
     } catch (error) {
-      console.error("Erro no método addOrUpdateProduct:", error);
+      console.error("Erro ao salvar produto:", error);
       showMessage("Erro ao salvar produto", "error");
     }
   };
-
-
 
   const removeProduct = async (id) => {
     try {
@@ -201,20 +182,15 @@ const Produtos = () => {
   };
 
   const editProduct = (index) => {
-    // Localiza o produto na lista filtrada e busca o ID
-    const filteredProduct = currentProducts[index]; // Produto da página atual
-    const productIndex = products.findIndex((product) => product.id === filteredProduct.id); // Busca o índice na lista completa
-  
-    setEditingIndex(productIndex); // Salva o índice completo
-    setNewProduct({
-      ...filteredProduct,
-      imagem: filteredProduct.imagem || null, // Carrega a imagem, se existir
-    });
-    setSelectedImage(null); // Reseta a seleção de imagem
-    setIsModalOpen(true); // Abre o modal
-  };
-  
+    // Pegando o produto correto da lista filtrada com base no índice da página atual
+    const filteredProduct = filteredProducts[index]; // Pega o produto da lista filtrada com base no índice
+    const productIndex = products.findIndex((product) => product.id === filteredProduct.id); // Encontra o índice correto no array original
 
+    setEditingIndex(productIndex); // Define o índice correto no estado
+    setNewProduct(filteredProduct); // Define os dados do produto para edição
+    setSelectedImage(null); // Limpa a imagem selecionada
+    setIsModalOpen(true); // Abre o modal para edição
+  };
 
   const resetForm = () => {
     setNewProduct({
@@ -330,7 +306,7 @@ const Produtos = () => {
                 {newProduct.imagem && !selectedImage && (
                   <div>
                     <img
-                      src={`data:image/png;base64,${newProduct.imagem}`}
+                      src={`data:image/png;base64,${product.imagem}`}
                       alt="Imagem do Produto"
                       style={{ width: "50px", height: "50px", objectFit: "cover" }}
                     />
@@ -341,15 +317,9 @@ const Produtos = () => {
                   </div>
                 )}
               </ImageContainer>
-              <Button
-  onClick={(event) => {
-    event.preventDefault(); // Previne o recarregamento da página
-    addOrUpdateProduct(); // Chama o método normalmente
-  }}
->
-  {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
-</Button>
-
+              <Button onClick={addOrUpdateProduct}>
+                {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
+              </Button>
             </AddProductForm>
           </ModalContent>
         </ModalContainer>
@@ -396,8 +366,6 @@ const Produtos = () => {
             </TableRow>
           ))}
         </tbody>
-
-
       </Table>
       <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
         <Button onClick={prevPage} disabled={currentPage === 1}>
