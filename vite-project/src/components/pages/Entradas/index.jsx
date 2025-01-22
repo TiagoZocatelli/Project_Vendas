@@ -59,7 +59,6 @@ const Entradas = () => {
         setEntries(entriesData);
         setSuppliers(suppliersData);
         setProducts(productsData);
-        setSelectedItems(entriesData.itens)
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
       }
@@ -79,9 +78,19 @@ const Entradas = () => {
 
   // Abrir e fechar modal de itens
   const openModal = (items) => {
-    setSelectedItems(items);
+    if (!items || items.length === 0) {
+      alert("Nenhum item para exibir.");
+      return;
+    }
+    setSelectedItems(items.map((item) => ({
+      productName: item.produto_id, // Adapte conforme necessário
+      quantity: item.quantidade,
+      cost: item.preco_custo,
+      subtotal: item.subtotal,
+    })));
     setIsModalOpen(true);
   };
+  
 
   const closeModal = () => {
     setSelectedItems([]);
@@ -246,8 +255,8 @@ const Entradas = () => {
 
   return (
     <Container>
-      <h1>Entradas</h1>
       <Button onClick={openAddModal}>Lançar Nota</Button>
+      <h1>Entradas de Compras</h1>
       <Table>
         <thead>
           <TableRow>

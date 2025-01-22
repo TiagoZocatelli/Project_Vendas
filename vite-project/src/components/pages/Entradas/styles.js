@@ -6,6 +6,10 @@ export const Container = styled.div`
   background: #f3f4f6;
   min-height: 100vh;
   color: #1e293b;
+  
+  h1 {
+    margin: 8px;
+  }
 `;
 
 export const ModalContainer = styled.div`
