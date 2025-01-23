@@ -3,39 +3,39 @@ import styled from "styled-components";
 export const Aside = styled.aside`
   position: fixed;
   top: 0;
-  left: ${(props) => (props.$isOpen ? "0" : "-300px")}; /* Colapsa o menu lateral */
-  width: 300px;
+  left: ${(props) => (props.$isOpen ? "0" : "-240px")}; /* Colapsa o menu lateral */
+  width: 240px;
   height: 100vh;
   background: linear-gradient(145deg, #1e3a5f, #243b55); /* Gradiente moderno */
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3); /* Sombra aprimorada */
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2); /* Sombra mais sutil */
   z-index: 1000;
   transition: left 0.3s ease;
-  border-radius: 1px;
+  border-radius: 0;
   @media (max-width: 768px) {
-    width: 250px;
+    width: 200px;
   }
 `;
 
 export const ToggleButton = styled.button`
   position: fixed;
-  top: 20px;
-  left: ${(props) => (props.$isOpen ? "300px" : "20px")};
+  top: 15px;
+  left: ${(props) => (props.$isOpen ? "240px" : "15px")};
   background: #243b55;
   color: #ffffff;
   border: none;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   cursor: pointer;
   z-index: 1100;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* Sombra sutil */
   transition: all 0.3s ease;
 
   &:hover {
@@ -51,19 +51,18 @@ export const AsideMenu = styled.ul`
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
 `;
 
 export const DropdownMenu = styled.div`
-  margin-top: 10px;
-  padding-left: 20px;
-  padding: 16px;
-  position: absolute; /* Garante que o menu flutue */
+  margin-top: 5px;
+  padding: 12px;
+  position: absolute;
   top: 100%;
   left: 0;
-  background: #1f2937; /* Fundo escuro elegante */
-  border-radius: 10px;
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); /* Sombra suave */
+  background: linear-gradient(145deg, #1e293b, #2d3748); /* Gradiente para um visual moderno */
+  border-radius: 12px; /* Bordas mais arredondadas */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* Sombra aprimorada */
   z-index: 999;
   display: flex;
   flex-direction: column;
@@ -71,71 +70,74 @@ export const DropdownMenu = styled.div`
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  &:hover {
+    opacity: 1; /* Garante que o hover mantenha o menu visível */
+    visibility: visible;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent; /* Triângulo para indicar a seta */
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #1e293b; /* Cor do fundo do menu */
   }
 `;
 
+
 export const DropdownItem = styled.div`
-  padding: 12px 20px;
-  border-radius: 6px; /* Bordas arredondadas mais suaves */
-  background: transparent; /* Fundo transparente por padrão */
-  font-size: 1rem;
+  padding: 8px 15px;
+  border-radius: 5px;
+  font-size: 0.9rem;
   font-weight: 500;
-  color: #d1d5db; /* Cor do texto inicial */
+  color: #d1d5db;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
 
   a {
     text-decoration: none;
-    color: inherit; /* Herda a cor do pai */
+    color: inherit;
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 100%; /* Ocupa toda a largura */
+    gap: 8px;
+    width: 100%;
   }
 
   &:hover {
-    background: #2563eb; /* Fundo azul no hover */
-    color: #ffffff; /* Texto branco no hover */
-    transform: translateX(5px); /* Leve movimento lateral */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra para profundidade */
+    background: #2563eb;
+    color: #ffffff;
+    transform: translateX(3px); /* Movimento mais leve */
   }
 
   &:active {
-    background: #1d4ed8; /* Azul mais escuro no clique */
-    color: #f1f5f9; /* Texto claro no clique */
-    transform: translateX(0); /* Remove o deslocamento no clique */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Sombra reduzida no clique */
+    background: #1d4ed8;
+    color: #f1f5f9;
+    transform: translateX(0);
   }
 `;
 
-
 export const AsideItem = styled.li`
-  position: relative; /* Necessário para o DropdownMenu */
+  position: relative;
   width: 100%;
-  padding: 15px 20px;
-  border-radius: 8px;
-  font-size: 1.2rem;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 1rem;
   font-weight: 500;
   color: #e2e8f0;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 
   a,
   div {
@@ -143,7 +145,7 @@ export const AsideItem = styled.li`
     color: inherit;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     font-family: "Roboto", sans-serif;
   }
 
@@ -154,23 +156,21 @@ export const AsideItem = styled.li`
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     color: #38bdf8;
   }
 `;
 
-
-
 export const MainContent = styled.main`
-  margin-left: 300px;
-  padding: 30px;
+  margin-left: 240px;
+  padding: 20px;
   flex: 1;
-  background: #f8fafc; /* Fundo claro */
+  background: #f8fafc;
   color: #1e293b;
   overflow-y: auto;
   transition: margin-left 0.3s ease;
 
   @media (max-width: 768px) {
-    margin-left: 250px;
+    margin-left: 200px;
   }
 `;

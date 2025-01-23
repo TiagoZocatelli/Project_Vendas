@@ -18,6 +18,9 @@ import {
   FaSignOutAlt,
   FaChartPie,
   FaFileAlt,
+  FaMapMarkerAlt,
+  FaBuilding,
+  FaArrowCircleDown
 } from "react-icons/fa";
 
 import { Link, Outlet } from "react-router-dom";
@@ -52,7 +55,7 @@ const Header = () => {
           </AsideItem>
           <AsideItem>
             <Link to="/entradas">
-              <FaSignInAlt /> Entradas
+              <FaSignInAlt  /> Entradas
             </Link>
           </AsideItem>
           <AsideItem>
@@ -78,15 +81,16 @@ const Header = () => {
             </DropdownMenu>
           </AsideItem>
           <AsideItem>
+            <Link to="/filiais">
+              <FaBuilding /> Filiais
+            </Link>
+          </AsideItem>
+          <AsideItem>
             <Link to="/logout">
               <FaSignOutAlt /> Logout
             </Link>
           </AsideItem>
-          <AsideItem>
-            <Link to="/filiais">
-              <FaSignOutAlt /> Filiais
-            </Link>
-          </AsideItem>
+
         </AsideMenu>
       </Aside>
 

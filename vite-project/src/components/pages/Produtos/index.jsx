@@ -359,6 +359,7 @@ const Produtos = () => {
       <Table>
         <thead>
           <TableRow>
+            <TableHeader>ID</TableHeader>
             <TableHeader>Imagem</TableHeader>
             <TableHeader>Nome</TableHeader>
             <TableHeader>Código de Barras</TableHeader>
@@ -372,6 +373,7 @@ const Produtos = () => {
         <tbody>
           {currentProducts.map((product, index) => (
             <TableRow key={product.id}>
+              <TableCell>{product.id}</TableCell>
               <TableCell>
                 {product.imagem ? (
                   <img

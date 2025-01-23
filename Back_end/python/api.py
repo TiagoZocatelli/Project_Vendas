@@ -611,14 +611,16 @@ def criar_entrada():
                     data["fornecedor_id"]  # Adicionando o fornecedor_id nos itens
                 ))
                 
-                # Atualiza o estoque do produto
+                # Atualiza o estoque do produto na tabela estoque_filial
                 cur.execute("""
-                    UPDATE produtos
-                    SET estoque = estoque + %s
-                    WHERE id = %s
+                    INSERT INTO estoque_filial (filial_id, produto_id, quantidade)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (filial_id, produto_id)
+                    DO UPDATE SET quantidade = estoque_filial.quantidade + EXCLUDED.quantidade
                 """, (
-                    item["quantidade"],
-                    item["produto_id"]
+                    data["filial_id"],  # ID da filial onde o estoque será atualizado
+                    item["produto_id"],  # ID do produto
+                    item["quantidade"]  # Quantidade a ser adicionada ao estoque
                 ))
 
             # Commit para salvar tudo no banco
