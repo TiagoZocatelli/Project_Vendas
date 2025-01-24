@@ -501,7 +501,7 @@ def excluir_produto(id):
 
 @app.route("/entradas", methods=["GET"])
 def obter_entradas():
-    """Retorna todas as entradas e seus respectivos itens, incluindo o nome do fornecedor."""
+    """Retorna todas as entradas e seus respectivos itens, incluindo o nome do fornecedor e do produto."""
     conn = get_db_connection()
     
     if not conn:
@@ -530,14 +530,16 @@ def obter_entradas():
             for entrada in entradas:
                 cur.execute("""
                     SELECT 
-                        id,
-                        entrada_id,
-                        produto_id,
-                        quantidade,
-                        preco_custo,
-                        subtotal
-                    FROM itens_entrada
-                    WHERE entrada_id = %s
+                        i.id AS item_id,
+                        i.entrada_id,
+                        i.produto_id,
+                        p.nome AS produto_nome,  -- Nome do produto
+                        i.quantidade,
+                        i.preco_custo,
+                        i.subtotal
+                    FROM itens_entrada i
+                    JOIN produtos p ON i.produto_id = p.id  -- Faz o JOIN com a tabela de produtos
+                    WHERE i.entrada_id = %s
                 """, (entrada[0],))  # entrada_id
                 itens = cur.fetchall()
 
@@ -558,9 +560,10 @@ def obter_entradas():
                             "id": item[0],  # ID do item
                             "entrada_id": item[1],  # ID da entrada à qual o item pertence
                             "produto_id": item[2],  # ID do produto relacionado ao item
-                            "quantidade": item[3],  # Quantidade do produto no item
-                            "preco_custo": item[4],  # Preço de custo do produto
-                            "subtotal": item[5],  # Subtotal do item (quantidade * preço de custo)
+                            "produto_nome": item[3],  # Nome do produto
+                            "quantidade": item[4],  # Quantidade do produto no item
+                            "preco_custo": item[5],  # Preço de custo do produto
+                            "subtotal": item[6],  # Subtotal do item (quantidade * preço de custo)
                         }
                         for item in itens
                     ]
@@ -573,6 +576,7 @@ def obter_entradas():
     
     finally:
         conn.close()
+
         
 @app.route("/entradas-notas", methods=["POST"])
 def criar_entrada():

@@ -11,7 +11,7 @@ import {
   Button,
   SearchBar,
 } from "./styles"; // Certifique-se de que o estilo `Notification` está definido aqui
-import { Notification } from "../Produtos/styles";
+import { Label, Notification } from "../Produtos/styles";
 
 const Fornecedores = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -150,6 +150,7 @@ const Fornecedores = () => {
       {notification.text && (
         <Notification type={notification.type}>{notification.text}</Notification>
       )}
+      <Label>Pesquisar: </Label>
       <SearchBar
         type="text"
         placeholder="Pesquisar por nome ou CNPJ"

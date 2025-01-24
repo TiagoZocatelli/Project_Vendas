@@ -1,9 +1,8 @@
 import styled from "styled-components";
 
 export const Container = styled.div`
-  margin-left: 300px; /* Espaço para o menu lateral fixo */
+  margin-left: 180px; /* Espaço para o menu lateral fixo */
   padding: 20px;
-  background: #f3f4f6;
   min-height: 100vh;
   color: #1e293b;
 `;
@@ -42,30 +41,6 @@ export const ModalContent = styled.div`
     color: #1e293b; /* Cor escura para o título */
     margin-bottom: 20px; /* Espaço inferior */
     text-align: center; /* Centralizar o título */
-  }
-
-  button {
-    margin-top: 20px;
-    width: 100%;
-    max-width: 250px; /* Botões maiores */
-    padding: 12px 20px; /* Mais espaçamento nos botões */
-    font-size: 1rem;
-    font-weight: 500;
-    color: #ffffff;
-    background-color: #2563eb; /* Cor azul */
-    border: none;
-    border-radius: 8px; /* Bordas arredondadas */
-    cursor: pointer;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-
-    &:hover {
-      background-color: #1d4ed8;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    &:active {
-      background-color: #1e40af;
-    }
   }
 
   /* Ajustes para dispositivos móveis */
@@ -184,24 +159,25 @@ export const Input = styled.input`
 `;
 
 export const Button = styled.button`
-  background: #2563eb;
-  margin: 2px;
+  background-color: #0056b3;
   color: #ffffff;
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 10px 20px;
+  font-size: 0.8rem; /* Reduz tamanho da fonte */
+  font-weight: 600;
+  padding: 6px 12px; /* Reduz padding */
   border: none;
-  border-radius: 8px;
+  border-radius: 6px; /* Bordas mais suaves */
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.1s ease, transform 0.2s ease;
+  margin-bottom: 8px;
+  margin-top: 16px;
+  margin-left: 4px;
 
   &:hover {
-    background: #1d4ed8;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: scale(1.02);
   }
 
   &:active {
-    background: #1e40af;
+    transform: scale(0.95);
   }
 `;
 
@@ -209,45 +185,79 @@ export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+  font-size: 0.9rem; /* Fonte menor */
+  border-radius: 6px; /* Bordas mais suaves */
   overflow: hidden;
-  table-layout: auto; /* Permite que as colunas se ajustem ao conteúdo */
+
+  thead {
+    background: #f3f4f6;
+  }
+
+  th,
+  td {
+    padding: 8px 10px; /* Reduz espaçamento interno */
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    color: #374151;
+  }
+
+  th {
+    font-weight: bold;
+    font-size: 0.9rem; /* Reduz tamanho da fonte no cabeçalho */
+  }
+
+  td {
+    font-size: 0.85rem; /* Fonte menor nas células */
+  }
+
+  tbody tr:hover {
+    background: #f9fafb; /* Fundo mais claro no hover */
+  }
+
+  img {
+    width: 40px; /* Reduz tamanho da imagem */
+    height: 40px; /* Reduz tamanho da imagem */
+    object-fit: cover;
+    border-radius: 4px;
+  }
 `;
 
 export const TableHeader = styled.th`
-  background: #1e293b;
-  color: #ffffff;
+  background: #f5f5f5;
+  color: #333333;
+  padding: 10px;
+  font-size: 0.9rem; /* Fonte menor */
+  font-weight: bold;
   text-align: left;
-  padding: 10px; /* Reduzi o padding */
-  font-size: 0.85rem; /* Tamanho da fonte reduzido */
-  font-weight: 600;
-  position: sticky; /* Mantém o cabeçalho fixo ao rolar */
-  top: 0;
-  z-index: 1;
+  border-bottom: 2px solid #dddddd;
 `;
 
 export const TableRow = styled.tr`
   &:nth-child(even) {
-    background: #f9fafb;
+    background: #fafafa;
+  }
+
+  &:nth-child(odd) {
+    background: #ffffff;
   }
 
   &:hover {
-    background: #e2e8f0;
+    background: #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s ease;
   }
 `;
 
 export const TableCell = styled.td`
-  padding: 8px; /* Reduzi o padding para otimizar espaço */
-  font-size: 0.85rem; /* Fonte menor para mais conteúdo visível */
-  color: #1e293b;
-  border-bottom: 1px solid #d1d5db;
+  padding: 8px 10px; /* Reduz espaçamento interno */
+  border-bottom: 1px solid #eeeeee;
+  color: #666666;
+  font-size: 0.85rem; /* Fonte menor */
   text-align: left;
 
-  /* Limita o texto em excesso com reticências */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  &:last-child {
+    text-align: right;
+  }
 `;
 
 export const TableContainer = styled.div`

@@ -15,9 +15,17 @@ import {
   RemoveImageButton,
   ModalContainer,
   ModalContent,
-  CloseButton
+  CloseButton,
+  Textarea,
+  ModalButton,
+  ButtonContainer,
+  SearchContainer,
+  Select,
+  Label,
+  ActionIcon
 } from "./styles"; // Importe o estilo Notification
 import api from "../../../api";
+import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
 
 const Produtos = () => {
   const [products, setProducts] = useState([]);
@@ -204,7 +212,7 @@ const Produtos = () => {
     // Localiza o produto na lista filtrada e busca o ID
     const filteredProduct = currentProducts[index]; // Produto da página atual
     const productIndex = products.findIndex((product) => product.id === filteredProduct.id); // Busca o índice na lista completa
-  
+
     setEditingIndex(productIndex); // Salva o índice completo
     setNewProduct({
       ...filteredProduct,
@@ -213,7 +221,7 @@ const Produtos = () => {
     setSelectedImage(null); // Reseta a seleção de imagem
     setIsModalOpen(true); // Abre o modal
   };
-  
+
 
 
   const resetForm = () => {
@@ -262,36 +270,54 @@ const Produtos = () => {
     }
   };
 
+  const limpaCampos = () => {
+    setIsModalOpen(false)
+    resetForm()
+  }
+
   return (
     <Container>
       <h1>Cadastro de Produtos</h1>
-      {message && <Notification type={message.type}>{message.text}</Notification>}
-      <SearchBar
-        type="text"
-        placeholder="Pesquisar por nome ou código de barras"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <div style={{ marginBottom: "20px" }}>
-        <label htmlFor="filialSelect">Filial: </label>
-        <select id="filialSelect" onChange={(e) => handleFilialChange(e.target.value)} value={selectedFilial}>
+      {message && (
+        <Notification type={message.type}>
+          {message.type === "success" ? (
+            <FaCheckCircle size={20} />
+          ) : (
+            <FaExclamationCircle size={20} />
+          )}
+          {message.text}
+        </Notification>
+      )}
+
+      <SearchContainer>
+        <Label htmlFor="filialSelect">Filial:</Label>
+        <Select
+          id="filialSelect"
+          onChange={(e) => handleFilialChange(e.target.value)}
+          value={selectedFilial}
+        >
           {filiais.map((filial) => (
             <option key={filial.id} value={filial.id}>
               {filial.nome}
             </option>
           ))}
-        </select>
-      </div>
-
-      {/* Botão para abrir o modal */}
-      <Button onClick={() => setIsModalOpen(true)}>Adicionar Produto</Button>
+        </Select>
+        <SearchBar
+          type="text"
+          placeholder="Pesquisar por nome ou código de barras"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Button onClick={() => setIsModalOpen(true)}>Adicionar Produto</Button>
+      </SearchContainer>
 
       {/* Modal de Cadastro de Produto */}
       {isModalOpen && (
         <ModalContainer>
           <ModalContent>
-            <CloseButton onClick={() => setIsModalOpen(false)}>&#10005;</CloseButton>
+            <CloseButton onClick={() => limpaCampos()}>&#10005;</CloseButton>
             <AddProductForm>
+              <h2>{editingIndex !== null ? "Editar Produto" : "Adicionar Novo Produto"}</h2>
               <Input
                 type="text"
                 name="nome"
@@ -320,6 +346,19 @@ const Produtos = () => {
                 value={newProduct.preco_venda}
                 onChange={handleInputChange}
               />
+              <Input
+                type="text"
+                name="categoria"
+                placeholder="Categoria do Produto"
+                value={newProduct.categoria || ""}
+                onChange={handleInputChange}
+              />
+              <Textarea
+                name="descricao"
+                placeholder="Descrição do Produto"
+                value={newProduct.descricao || ""}
+                onChange={handleInputChange}
+              />
               <ImageContainer>
                 <input
                   type="file"
@@ -332,28 +371,30 @@ const Produtos = () => {
                     <img
                       src={`data:image/png;base64,${newProduct.imagem}`}
                       alt="Imagem do Produto"
-                      style={{ width: "50px", height: "50px", objectFit: "cover" }}
                     />
 
-                    <RemoveImageButton onClick={() => removeImage(newProduct.id)}>
-                      Remover Imagem
-                    </RemoveImageButton>
                   </div>
                 )}
               </ImageContainer>
-              <Button
-  onClick={(event) => {
-    event.preventDefault(); // Previne o recarregamento da página
-    addOrUpdateProduct(); // Chama o método normalmente
-  }}
->
-  {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
-</Button>
+              <ButtonContainer>
+                <ModalButton
+                  onClick={(event) => {
+                    event.preventDefault();
+                    addOrUpdateProduct();
+                  }}
+                >
+                  {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
+                </ModalButton>
+                <RemoveImageButton onClick={() => removeImage(newProduct.id)}>
+                  Remover Imagem
+                </RemoveImageButton>
+              </ButtonContainer>
 
             </AddProductForm>
           </ModalContent>
         </ModalContainer>
       )}
+
 
       {/* Tabela de Produtos */}
       <Table>
@@ -392,8 +433,12 @@ const Produtos = () => {
               <TableCell>{product.margem}%</TableCell>
               <TableCell>{product.estoque}</TableCell>
               <TableCell>
-                <Button onClick={() => editProduct(index)}>Editar</Button>
-                <Button onClick={() => removeProduct(product.id)}>Remover</Button>
+                <ActionIcon onClick={() => editProduct(index)}>
+                  <FaEdit size={16} style={{ color: "#2563eb" }} />
+                </ActionIcon>
+                <ActionIcon onClick={() => removeProduct(product.id)}>
+                  <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                </ActionIcon>
               </TableCell>
             </TableRow>
           ))}

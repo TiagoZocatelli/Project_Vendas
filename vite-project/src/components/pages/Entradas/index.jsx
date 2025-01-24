@@ -12,7 +12,22 @@ import {
   Input,
   SuggestionsList,
   Select,
+  CloseButton,
+  TableContainer,
+  AddFormContainer,
+  SelectedProductContainer,
+  ProductDetails,
+  ProductImage,
+  ActionIcon,
+  ItemsModalContainer,
+  ItemsModalContent,
+  CloseModalButton,
+  ItemsTable,
 } from "./styles";
+import { Notification } from "../Produtos/styles";
+import { useRef } from "react";
+import { FaEdit, FaTrash } from "react-icons/fa";
+
 
 const Entradas = () => {
   const [entries, setEntries] = useState([]);
@@ -27,6 +42,12 @@ const Entradas = () => {
   const [editItemIndex, setEditItemIndex] = useState(null);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const productSearchRef = useRef(null);
+  const [notification, setNotification] = useState("");
+  const [highlightedSupplierIndex, setHighlightedSupplierIndex] = useState(-1); // Índice destacado para fornecedores
+  const [highlightedProductIndex, setHighlightedProductIndex] = useState(-1); // Índice destacado para produtos
+
+
   const [newEntry, setNewEntry] = useState({
     branchId: "", // Filial selecionada
     supplierId: "",
@@ -44,6 +65,56 @@ const Entradas = () => {
     quantity: "",
     cost: "",
   });
+
+  const handleSupplierKeyDown = (e) => {
+    if (filteredSuppliers.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      setHighlightedSupplierIndex((prevIndex) =>
+        prevIndex < filteredSuppliers.length - 1 ? prevIndex + 1 : prevIndex
+      );
+    } else if (e.key === "ArrowUp") {
+      setHighlightedSupplierIndex((prevIndex) =>
+        prevIndex > 0 ? prevIndex - 1 : prevIndex
+      );
+    } else if (e.key === "Enter" && highlightedSupplierIndex >= 0) {
+      const selectedSupplier = filteredSuppliers[highlightedSupplierIndex];
+      setNewEntry((prev) => ({
+        ...prev,
+        supplierId: selectedSupplier.id,
+        supplierName: selectedSupplier.nome,
+        supplierCnpj: selectedSupplier.cnpj,
+      }));
+      setSupplierSearch(""); // Limpa o campo
+      setFilteredSuppliers([]); // Remove sugestões
+    }
+  };
+
+  const handleProductKeyDown = (e) => {
+    if (filteredProducts.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      setHighlightedProductIndex((prevIndex) =>
+        prevIndex < filteredProducts.length - 1 ? prevIndex + 1 : prevIndex
+      );
+    } else if (e.key === "ArrowUp") {
+      setHighlightedProductIndex((prevIndex) =>
+        prevIndex > 0 ? prevIndex - 1 : prevIndex
+      );
+    } else if (e.key === "Enter" && highlightedProductIndex >= 0) {
+      const selectedProduct = filteredProducts[highlightedProductIndex];
+      setNewItem((prev) => ({
+        ...prev,
+        productId: selectedProduct.id,
+        productName: selectedProduct.nome,
+        barcode: selectedProduct.codigo_barras,
+        imagem: selectedProduct.imagem,
+      }));
+      setProductSearch(""); // Limpa o campo
+      setFilteredProducts([]); // Remove sugestões
+    }
+  };
+
 
   const filterSuppliers = (search) => {
     if (!search) {
@@ -115,7 +186,7 @@ const Entradas = () => {
 
   const openModal = (items) => {
     if (!items || items.length === 0) {
-      alert("Nenhum item para exibir.");
+      showNotification("Nenhum item para exibir.", "error");
       return;
     }
     setSelectedItems(items);
@@ -151,13 +222,25 @@ const Entradas = () => {
       observacoes: "",
       itens: [],
     });
+    setNewItem({
+      productId: "",
+      productName: "",
+      barcode: "",
+      quantity: "",
+      cost: "",
+      imagem: "", // Garante que a imagem também seja zerada
+    });
+    setSupplierSearch("");
+    setProductSearch("");
     setFilteredSuppliers([]);
     setFilteredProducts([]);
+    setHighlightedSupplierIndex(-1);
+    setHighlightedProductIndex(-1);
   };
 
   const addItemToNewEntry = () => {
     if (!newItem.productId || !newItem.quantity || !newItem.cost) {
-      alert("Por favor, preencha todos os campos do item.");
+      showNotification("Por favor, preencha todos os campos do item.", "error");
       return;
     }
 
@@ -183,6 +266,9 @@ const Entradas = () => {
     });
 
     setEditItemIndex(null);
+
+    // Retorna o foco para o campo de pesquisa de produtos
+    productSearchRef.current.focus();
   };
 
 
@@ -198,7 +284,7 @@ const Entradas = () => {
 
   const submitNewEntry = async () => {
     if (!newEntry.branchId || !newEntry.supplierId || newEntry.itens.length === 0) {
-      alert("Por favor, preencha os campos obrigatórios.");
+      showNotification("Por favor, preencha os campos obrigatórios", "error");
       return;
     }
 
@@ -222,24 +308,38 @@ const Entradas = () => {
       });
 
       if (response.ok) {
-        alert("Nota lançada com sucesso!");
+        showNotification("Nota lançada com sucesso!", "success");
         closeAddModal();
         const newEntryData = await response.json();
         setEntries([...entries, newEntryData]);
       } else {
         const errorData = await response.json();
-        alert(`Erro ao lançar nota: ${errorData.error}`);
+        showNotification(`Erro ao lançar nota: ${errorData.error}`, "error");
       }
     } catch (error) {
       console.error("Erro ao enviar os dados:", error);
-      alert("Erro ao lançar nota.");
+      showNotification("Erro ao lançar nota.", "error");
     }
   };
 
+  const showNotification = (message, type = "success") => {
+    setNotification({ message, type });
+
+    // Remove a notificação automaticamente após 3 segundos
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
+
   return (
     <Container>
-      <Button onClick={openAddModal}>Lançar Nota</Button>
+      {notification && (
+        <Notification type={notification.type}>{notification.message}</Notification>
+      )}
+
       <h1>Entradas de Compras</h1>
+      <Button onClick={openAddModal}>Lançar Nota</Button>
       <Table>
         <thead>
           <TableRow>
@@ -279,12 +379,13 @@ const Entradas = () => {
       </Table>
 
       {isModalOpen && (
-        <ModalContainer onClick={closeModal}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
+        <ItemsModalContainer onClick={closeModal}>
+          <ItemsModalContent onClick={(e) => e.stopPropagation()}>
             <h2>Itens da Entrada</h2>
-            <Table>
+            <ItemsTable>
               <thead>
                 <TableRow>
+                  <TableHeader>ID</TableHeader>
                   <TableHeader>Produto</TableHeader>
                   <TableHeader>Quantidade</TableHeader>
                   <TableHeader>Custo</TableHeader>
@@ -294,6 +395,7 @@ const Entradas = () => {
               <tbody>
                 {selectedItems.map((item, index) => (
                   <TableRow key={index}>
+                    <TableCell>{item.produto_id}</TableCell>
                     <TableCell>{item.produto_nome}</TableCell>
                     <TableCell>{item.quantidade}</TableCell>
                     <TableCell>R$ {parseFloat(item.preco_custo).toFixed(2)}</TableCell>
@@ -303,148 +405,184 @@ const Entradas = () => {
                   </TableRow>
                 ))}
               </tbody>
-            </Table>
-            <Button onClick={closeModal}>Fechar</Button>
-          </ModalContent>
-        </ModalContainer>
+            </ItemsTable>
+            <CloseModalButton onClick={closeModal}>Fechar</CloseModalButton>
+          </ItemsModalContent>
+        </ItemsModalContainer>
       )}
 
       {isAddModalOpen && (
         <ModalContainer onClick={closeAddModal}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
-            <h2>Lançar Nota</h2>
-            <AddForm>
-              <Select
-                value={newEntry.branchId}
-                onChange={(e) =>
-                  setNewEntry((prev) => ({ ...prev, branchId: e.target.value }))
-                }
-              >
-                <option value="">Selecione a Filial</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.nome}
-                  </option>
-                ))}
-              </Select>
+            <AddFormContainer>
+              <h2>Lançar Nota</h2>
+              <AddForm>
+                <Select
+                  value={newEntry.branchId}
+                  onChange={(e) =>
+                    setNewEntry((prev) => ({ ...prev, branchId: e.target.value }))
+                  }
+                >
+                  <option value="">Selecione a Filial</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.nome}
+                    </option>
+                  ))}
+                </Select>
 
-              <Input
-                placeholder="Pesquisar Fornecedor"
-                value={supplierSearch} // Mostra o texto que o usuário está digitando
-                onChange={(e) => {
-                  setSupplierSearch(e.target.value); // Atualiza o texto do input
-                  filterSuppliers(e.target.value); // Atualiza as sugestões
-                }}
-              />
-              <SuggestionsList>
-                {filteredSuppliers.map((supplier) => (
-                  <li
-                    key={supplier.id}
-                    onClick={() => {
-                      setNewEntry((prev) => ({
-                        ...prev,
-                        supplierId: supplier.id,
-                        supplierName: supplier.nome,
-                        supplierCnpj: supplier.cnpj,
-                      }));
-                      setSupplierSearch(""); // Limpa o texto do input
-                      setFilteredSuppliers([]); // Limpa as sugestões
-                    }}
-                  >
-                    {supplier.nome} - {supplier.cnpj}
-                  </li>
-                ))}
-              </SuggestionsList>
+                <Input
+                  placeholder="Pesquisar Fornecedor"
+                  value={supplierSearch}
+                  onChange={(e) => {
+                    setSupplierSearch(e.target.value);
+                    filterSuppliers(e.target.value);
+                  }}
+                  onKeyDown={handleSupplierKeyDown} // Adiciona eventos de teclado
+                />
+                <SuggestionsList>
+                  {filteredSuppliers.map((supplier, index) => (
+                    <li
+                      key={supplier.id}
+                      onClick={() => {
+                        setNewEntry((prev) => ({
+                          ...prev,
+                          supplierId: supplier.id,
+                          supplierName: supplier.nome,
+                          supplierCnpj: supplier.cnpj,
+                        }));
+                        setSupplierSearch("");
+                        setFilteredSuppliers([]);
+                      }}
+                      style={{
+                        backgroundColor:
+                          index === highlightedSupplierIndex ? "#f3f4f6" : "transparent",
+                        color: index === highlightedSupplierIndex ? "#1d4ed8" : "#000",
+                      }}
+                    >
+                      {supplier.nome} - {supplier.cnpj}
+                    </li>
+                  ))}
+                </SuggestionsList>
 
-              {/* Exibir o fornecedor selecionado */}
-              {newEntry.supplierName && (
-                <p>
-                  <strong>Fornecedor Selecionado:</strong> {newEntry.supplierName} -{" "}
-                  {newEntry.supplierCnpj}
-                </p>
-              )}
-              <h3>Adicionar Item</h3>
-              <Input
-                placeholder="Pesquisar Produto"
-                value={productSearch} // Mostra o texto que o usuário está digitando
-                onChange={(e) => {
-                  setProductSearch(e.target.value); // Atualiza o texto do input
-                  filterProducts(e.target.value); // Atualiza as sugestões
-                }}
-              />
-              <SuggestionsList>
-                {filteredProducts.map((product) => (
-                  <li
-                    key={product.id}
-                    onClick={() => {
-                      setNewItem((prev) => ({
-                        ...prev,
-                        productId: product.id,
-                        productName: product.nome,
-                        barcode: product.codigo_barras,
-                        imagem: product.imagem, // Inclui a imagem base64 do produto
-                      }));
-                      setProductSearch(""); // Limpa o texto do input
-                      setFilteredProducts([]); // Limpa as sugestões
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      {product.imagem ? (
-                        <img
-                          src={`data:image/png;base64,${product.imagem}`} // Exibe a imagem em formato base64
-                          alt="Produto"
-                          style={{
-                            width: "50px",
-                            height: "50px",
-                            objectFit: "cover",
-                            borderRadius: "4px",
-                            marginRight: "10px",
-                          }}
-                        />
-                      ) : (
-                        <span style={{ marginRight: "10px" }}>Sem imagem</span> // Fallback para produtos sem imagem
-                      )}
-                      <span>
-                        {product.nome} - {product.codigo_barras}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </SuggestionsList>
+                {newEntry.supplierName && (
+                  <p>
+                    <strong>Fornecedor Selecionado:</strong> {newEntry.supplierName} -{" "}
+                    {newEntry.supplierCnpj}
+                  </p>
+                )}
+
+                <h3>Adicionar Item</h3>
+                <Input
+                  ref={productSearchRef}
+                  placeholder="Pesquisar Produto"
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    filterProducts(e.target.value);
+                  }}
+                  onKeyDown={handleProductKeyDown}
+                />
+                <SuggestionsList>
+                  {filteredProducts.map((product, index) => (
+                    <li
+                      key={product.id}
+                      onClick={() => {
+                        setNewItem((prev) => ({
+                          ...prev,
+                          productId: product.id,
+                          productName: product.nome,
+                          barcode: product.codigo_barras,
+                          imagem: product.imagem,
+                        }));
+                        setProductSearch("");
+                        setFilteredProducts([]);
+                        setHighlightedProductIndex(-1);
+                      }}
+                      style={{
+                        backgroundColor: index === highlightedProductIndex ? "#f3f4f6" : "transparent",
+                        color: index === highlightedProductIndex ? "#1d4ed8" : "#000",
+                        padding: "10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        {product.imagem ? (
+                          <img
+                            src={`data:image/png;base64,${product.imagem}`}
+                            alt="Produto"
+                            style={{
+                              width: "50px",
+                              height: "50px",
+                              objectFit: "cover",
+                              borderRadius: "4px",
+                              marginRight: "10px",
+                            }}
+                          />
+                        ) : (
+                          <span style={{ marginRight: "10px" }}>Sem imagem</span>
+                        )}
+                        <span>
+                          {product.nome} - {product.codigo_barras}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </SuggestionsList>
+
+                {newItem.productName && (
+                  <SelectedProductContainer>
+                    <ProductDetails>
+                      <h4>Produto Selecionado:</h4>
+                      <p>
+                        <strong>Nome:</strong> {newItem.productName}
+                      </p>
+                      <p>
+                        <strong>Código de Barras:</strong> {newItem.barcode || "N/A"}
+                      </p>
+                    </ProductDetails>
+                    {newItem.imagem && (
+                      <ProductImage
+                        src={`data:image/png;base64,${newItem.imagem}`}
+                        alt="Imagem do Produto"
+                      />
+                    )}
+                  </SelectedProductContainer>
+                )}
 
 
-              {/* Exibir o produto selecionado */}
-              {newItem.productName && (
-                <p>
-                  <strong>Produto Selecionado:</strong> {newItem.productName} -{" "}
-                  {newItem.barcode}
-                </p>
-              )}
 
-              <Input
-                type="number"
-                placeholder="Quantidade"
-                value={newItem.quantity}
-                onChange={(e) =>
-                  setNewItem((prev) => ({ ...prev, quantity: e.target.value }))
-                }
-              />
-              <Input
-                type="number"
-                placeholder="Custo"
-                value={newItem.cost}
-                onChange={(e) =>
-                  setNewItem((prev) => ({ ...prev, cost: e.target.value }))
-                }
-              />
-              <Button onClick={addItemToNewEntry}>
-                {editItemIndex !== null ? "Alterar Item" : "Adicionar Item"}
-              </Button>
+                <Input
+                  type="number"
+                  placeholder="Quantidade"
+                  value={newItem.quantity}
+                  onChange={(e) =>
+                    setNewItem((prev) => ({ ...prev, quantity: e.target.value }))
+                  }
+                />
+                <Input
+                  type="number"
+                  placeholder="Custo"
+                  value={newItem.cost}
+                  onChange={(e) =>
+                    setNewItem((prev) => ({ ...prev, cost: e.target.value }))
+                  }
+                />
+                <Button onClick={addItemToNewEntry}>
+                  {editItemIndex !== null ? "Alterar Item" : "Adicionar Item"}
+                </Button>
 
+                <Button onClick={submitNewEntry}>Salvar Nota</Button>
+                <CloseButton onClick={closeAddModal}>X</CloseButton>
+                <h3>Total: R$ {newEntry.total}</h3>
+              </AddForm>
+            </AddFormContainer>
+
+            <TableContainer>
               <Table>
                 <thead>
                   <TableRow>
-                    <TableHeader>Imagem</TableHeader> {/* Adiciona a coluna de imagem */}
+                    <TableHeader>Imagem</TableHeader>
                     <TableHeader>Produto</TableHeader>
                     <TableHeader>Quantidade</TableHeader>
                     <TableHeader>Custo</TableHeader>
@@ -458,7 +596,7 @@ const Entradas = () => {
                       <TableCell>
                         {item.imagem ? (
                           <img
-                            src={`data:image/png;base64,${item.imagem}`} // Exibe a imagem em formato base64
+                            src={`data:image/png;base64,${item.imagem}`}
                             alt={item.productName}
                             style={{
                               width: "50px",
@@ -468,7 +606,7 @@ const Entradas = () => {
                             }}
                           />
                         ) : (
-                          <span>Sem imagem</span> // Fallback caso a imagem não esteja disponível
+                          <span>Sem imagem</span>
                         )}
                       </TableCell>
                       <TableCell>{item.productName}</TableCell>
@@ -478,25 +616,37 @@ const Entradas = () => {
                         R$ {(item.quantity * item.cost).toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <Button onClick={() => editItem(index)}>Editar</Button>
-                        <Button
-                          style={{ background: "#FF6B6B" }}
-                          onClick={() => deleteItem(index)}
-                        >
-                          Remover
-                        </Button>
+                        <ActionIcon>
+                          <FaEdit
+                            size={16}
+                            style={{
+                              color: "#2563eb",
+                              cursor: "pointer",
+                              marginRight: "10px",
+                            }}
+                            onClick={() => editItem(index)}
+                          />
+                        </ActionIcon>
+                        <ActionIcon>
+                          <FaTrash
+                            size={16}
+                            style={{
+                              color: "#f43f5e",
+                              cursor: "pointer",
+                            }}
+                            onClick={() => deleteItem(index)}
+                          />
+                        </ActionIcon>
+
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </tbody>
               </Table>
-
-
-              <h3>Total: R$ {newEntry.total}</h3>
-              <Button onClick={submitNewEntry}>Salvar Nota</Button>
-              <Button onClick={closeAddModal}>Fechar</Button>
-            </AddForm>
+            </TableContainer>
           </ModalContent>
+
         </ModalContainer>
       )}
     </Container>

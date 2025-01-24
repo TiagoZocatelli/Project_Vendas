@@ -1,16 +1,27 @@
 import styled from "styled-components";
 
 export const Container = styled.div`
-  margin-left: 300px;
+  margin-left: 180px;
   padding: 20px;
-  background: #f9fafb;
   min-height: 100vh;
   color: #1e293b;
+  margin-top: 48px;
 
   @media (max-width: 768px) {
     margin-left: 0;
     padding: 15px;
   }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+`;
+
+export const Label = styled.label`
+  font-size: 1rem;
+  color: #555555;
+  font-weight: bold;
 `;
 
 export const SearchBar = styled.input`
@@ -67,28 +78,26 @@ export const Input = styled.input`
   }
 `;
 
+
 export const Button = styled.button`
-  background: #3b82f6;
+  background-color: #0056b3;
   color: #ffffff;
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 10px 20px;
+  font-size: 0.8rem; /* Reduz tamanho da fonte */
+  font-weight: 600;
+  padding: 6px 12px; /* Reduz padding */
   border: none;
-  border-radius: 8px;
+  border-radius: 6px; /* Bordas mais suaves */
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.1s ease, transform 0.2s ease;
+  margin-bottom: 4px;
+  margin-left: 4px;
 
   &:hover {
-    background: #2563eb;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: scale(1.02);
   }
 
   &:active {
-    background: #1d4ed8;
-  }
-
-  @media (max-width: 768px) {
-    width: 100%;
+    transform: scale(0.95);
   }
 `;
 
@@ -96,48 +105,77 @@ export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+  font-size: 0.9rem; /* Fonte menor */
+  border-radius: 6px; /* Bordas mais suaves */
   overflow: hidden;
 
-  @media (max-width: 768px) {
-    font-size: 0.9rem;
+  thead {
+    background: #f3f4f6;
+  }
+
+  th,
+  td {
+    padding: 8px 10px; /* Reduz espaçamento interno */
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    color: #374151;
+  }
+
+  th {
+    font-weight: bold;
+    font-size: 0.9rem; /* Reduz tamanho da fonte no cabeçalho */
+  }
+
+  td {
+    font-size: 0.85rem; /* Fonte menor nas células */
+  }
+
+  tbody tr:hover {
+    background: #f9fafb; /* Fundo mais claro no hover */
+  }
+
+  img {
+    width: 40px; /* Reduz tamanho da imagem */
+    height: 40px; /* Reduz tamanho da imagem */
+    object-fit: cover;
+    border-radius: 4px;
   }
 `;
 
 export const TableHeader = styled.th`
-  background: #1e293b;
-  color: #ffffff;
+  background: #f5f5f5;
+  color: #333333;
+  padding: 10px;
+  font-size: 0.9rem; /* Fonte menor */
+  font-weight: bold;
   text-align: left;
-  padding: 15px;
-  font-size: 1rem;
-  font-weight: 600;
-
-  @media (max-width: 768px) {
-    padding: 10px;
-    font-size: 0.9rem;
-  }
+  border-bottom: 2px solid #dddddd;
 `;
 
 export const TableRow = styled.tr`
   &:nth-child(even) {
-    background: #f1f5f9;
+    background: #fafafa;
+  }
+
+  &:nth-child(odd) {
+    background: #ffffff;
   }
 
   &:hover {
-    background: #e2e8f0;
+    background: #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s ease;
   }
 `;
 
 export const TableCell = styled.td`
-  padding: 15px;
-  font-size: 0.9rem;
-  color: #1e293b;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 10px; /* Reduz espaçamento interno */
+  border-bottom: 1px solid #eeeeee;
+  color: #666666;
+  font-size: 0.85rem; /* Fonte menor */
   text-align: left;
 
-  @media (max-width: 768px) {
-    padding: 10px;
-    font-size: 0.85rem;
+  &:last-child {
+    text-align: right;
   }
 `;

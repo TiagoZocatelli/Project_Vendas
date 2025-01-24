@@ -1,84 +1,90 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Aside,
+  AsideContainer,
   AsideMenu,
   AsideItem,
   DropdownMenu,
-  DropdownItem,
-  ToggleButton,
-  MainContent,
+  HeaderContainer,
+  HeaderTitle,
+  HeaderActions,
+  ProfileButton,
+  LogoutButton,
+  HeaderInfo,
+  DateTime,
+  UserGreeting,
+  SettingsIcon,
+  ModalContainer,
+  ModalContent,
 } from "./styles";
+
+// Importando ícones
 import {
-  FaUsers,
+  FaHome,
   FaBox,
   FaTruck,
-  FaSignInAlt,
-  FaClipboardList,
-  FaMoneyBillWave,
-  FaSignOutAlt,
-  FaChartPie,
-  FaFileAlt,
-  FaMapMarkerAlt,
+  FaUsers,
   FaBuilding,
-  FaArrowCircleDown
+  FaSignInAlt,
+  FaChevronDown,
+  FaCog,
 } from "react-icons/fa";
 
-import { Link, Outlet } from "react-router-dom";
+// Importando Link do react-router-dom
+import { Link } from "react-router-dom";
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [isAsideOpen, setIsAsideOpen] = useState(true);
+  const [isCadastroOpen, setIsCadastroOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // Atualiza a cada segundo
+
+    // Limpa o intervalo quando o componente é desmontado
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleCadastroMenu = () => {
+    setIsCadastroOpen((prev) => !prev);
   };
 
   return (
     <>
-      <ToggleButton onClick={toggleMenu}>{isMenuOpen ? "❮" : "❯"}</ToggleButton>
-
-      <Aside $isOpen={isMenuOpen}>
+      {/* Menu Lateral */}
+      <AsideContainer $isOpen={isAsideOpen}>
         <AsideMenu>
-          <AsideItem>
-            <Link to="/produtos">
-              <FaBox /> Produtos
-            </Link>
-          </AsideItem>
-          <AsideItem>
-            <Link to="/clientes">
-              <FaUsers /> Clientes
-            </Link>
-          </AsideItem>
-          <AsideItem>
-            <Link to="/fornecedores">
-              <FaTruck /> Fornecedores
-            </Link>
-          </AsideItem>
-          <AsideItem>
-            <Link to="/entradas">
-              <FaSignInAlt  /> Entradas
-            </Link>
-          </AsideItem>
-          <AsideItem>
+          <AsideItem onClick={toggleCadastroMenu}>
             <div>
-              <FaClipboardList /> Relatórios
+              <FaBox /> Cadastro <FaChevronDown />
             </div>
-            <DropdownMenu>
-              <DropdownItem>
-                <Link to="/relatorios/vendas">
-                  <FaChartPie /> Vendas
-                </Link>
-              </DropdownItem>
-              <DropdownItem>
-                <Link to="/relatorios/financeiro">
-                  <FaMoneyBillWave /> Financeiro
-                </Link>
-              </DropdownItem>
-              <DropdownItem>
-                <Link to="/relatorios/estoque">
-                  <FaFileAlt /> Estoque
-                </Link>
-              </DropdownItem>
-            </DropdownMenu>
+            {isCadastroOpen && (
+              <DropdownMenu>
+                <li>
+                  <Link to="/produtos">
+                    <FaBox /> Produtos
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/fornecedores">
+                    <FaTruck /> Fornecedores
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/clientes">
+                    <FaUsers /> Clientes
+                  </Link>
+                </li>
+              </DropdownMenu>
+            )}
+          </AsideItem>
+          <AsideItem>
+            <Link to="/dashboard">
+              <FaHome /> Dashboard
+            </Link>
           </AsideItem>
           <AsideItem>
             <Link to="/filiais">
@@ -86,17 +92,60 @@ const Header = () => {
             </Link>
           </AsideItem>
           <AsideItem>
-            <Link to="/logout">
-              <FaSignOutAlt /> Logout
+            <Link to="/entradas">
+              <FaSignInAlt /> Entradas
             </Link>
           </AsideItem>
-
         </AsideMenu>
-      </Aside>
+      </AsideContainer>
 
-      <MainContent>
-        <Outlet />
-      </MainContent>
+      {/* Cabeçalho */}
+      <HeaderContainer $isAsideOpen={isAsideOpen}>
+        <HeaderTitle>ZK SISTEMAS GERENCIAL</HeaderTitle>
+        <HeaderInfo>
+          {/* Exibição de Data e Hora */}
+          <DateTime>{currentTime.toLocaleString()}</DateTime>
+
+          {/* Saudações ao Usuário */}
+          <UserGreeting>Bem-vindo, Zokah!</UserGreeting>
+
+          {/* Ícones e Botões */}
+          <HeaderActions>
+            <SettingsIcon onClick={() => setIsSettingsModalOpen(true)}>
+              <FaCog />
+            </SettingsIcon>
+            <ProfileButton onClick={() => setIsProfileModalOpen(true)}>
+              <FaUsers /> Perfil
+            </ProfileButton>
+            <LogoutButton>
+              <FaSignInAlt /> Sair
+            </LogoutButton>
+          </HeaderActions>
+        </HeaderInfo>
+      </HeaderContainer>
+
+      {/* Modal de Perfil */}
+      {isProfileModalOpen && (
+        <ModalContainer onClick={() => setIsProfileModalOpen(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <h2>Informações do Perfil</h2>
+            <p>Nome: Zokah</p>
+            <p>Email: Zokah@zk.com</p>
+            <button onClick={() => setIsProfileModalOpen(false)}>Fechar</button>
+          </ModalContent>
+        </ModalContainer>
+      )}
+
+      {/* Modal de Configurações */}
+      {isSettingsModalOpen && (
+        <ModalContainer onClick={() => setIsSettingsModalOpen(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <h2>Configurações</h2>
+            <p>Definições gerais do sistema</p>
+            <button onClick={() => setIsSettingsModalOpen(false)}>Fechar</button>
+          </ModalContent>
+        </ModalContainer>
+      )}
     </>
   );
 };
