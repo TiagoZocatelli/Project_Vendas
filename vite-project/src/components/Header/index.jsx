@@ -57,47 +57,39 @@ const Header = () => {
       {/* Menu Lateral */}
       <AsideContainer $isOpen={isAsideOpen}>
         <AsideMenu>
-          <AsideItem onClick={toggleCadastroMenu}>
-            <div>
-              <FaBox /> Cadastro <FaChevronDown />
-            </div>
-            {isCadastroOpen && (
-              <DropdownMenu>
-                <li>
-                  <Link to="/produtos">
-                    <FaBox /> Produtos
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/fornecedores">
-                    <FaTruck /> Fornecedores
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/clientes">
-                    <FaUsers /> Clientes
-                  </Link>
-                </li>
-              </DropdownMenu>
-            )}
-          </AsideItem>
-          <AsideItem>
+          <AsideItem bgColor="#4CAF50" hoverColor="#388E3C">
             <Link to="/dashboard">
-              <FaHome /> Dashboard
+              <FaHome />
+              Dashboard
             </Link>
           </AsideItem>
-          <AsideItem>
-            <Link to="/filiais">
-              <FaBuilding /> Filiais
+          <AsideItem bgColor="#FF9800" hoverColor="#F57C00">
+            <Link to="/produtos">
+              <FaBox />
+              Produtos
             </Link>
           </AsideItem>
-          <AsideItem>
+          <AsideItem bgColor="#03A9F4" hoverColor="#0288D1">
+            <Link to="/fornecedores">
+              <FaTruck />
+              Fornecedores
+            </Link>
+          </AsideItem>
+          <AsideItem bgColor="#9C27B0" hoverColor="#7B1FA2">
+            <Link to="/clientes">
+              <FaUsers />
+              Clientes
+            </Link>
+          </AsideItem>
+          <AsideItem bgColor="#F44336" hoverColor="#D32F2F">
             <Link to="/entradas">
-              <FaSignInAlt /> Entradas
+              <FaSignInAlt />
+              Entradas
             </Link>
           </AsideItem>
         </AsideMenu>
       </AsideContainer>
+
 
       {/* Cabeçalho */}
       <HeaderContainer $isAsideOpen={isAsideOpen}>

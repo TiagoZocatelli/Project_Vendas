@@ -40,7 +40,7 @@ const Fornecedores = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/fornecedores");
+      const response = await axios.get("http://192.168.1.56:5000/fornecedores");
       const formattedSuppliers = response.data.map((supplier) => ({
         name: supplier.nome,
         cnpj: supplier.cnpj,
@@ -85,12 +85,12 @@ const Fornecedores = () => {
         if (editingIndex !== null) {
           const supplierToUpdate = suppliers[editingIndex];
           await axios.put(
-            `http://localhost:5000/fornecedores/${supplierToUpdate.id}`,
+            `http://192.168.1.56:5000/fornecedores/${supplierToUpdate.id}`,
             payload
           );
           showMessage("success", "Fornecedor atualizado com sucesso!");
         } else {
-          await axios.post("http://localhost:5000/fornecedores", payload);
+          await axios.post("http://192.168.1.56:5000/fornecedores", payload);
           showMessage("success", "Fornecedor cadastrado com sucesso!");
         }
 
@@ -124,7 +124,7 @@ const Fornecedores = () => {
     try {
       const supplierToRemove = suppliers[index];
       await axios.delete(
-        `http://localhost:5000/fornecedores/${supplierToRemove.id}`
+        `http://192.168.1.56:5000/fornecedores/${supplierToRemove.id}`
       );
       showMessage("success", "Fornecedor removido com sucesso!");
       fetchSuppliers();

@@ -22,16 +22,24 @@ import {
   SearchContainer,
   Select,
   Label,
-  ActionIcon
+  ActionIcon,
+  DivCategory
 } from "./styles"; // Importe o estilo Notification
 import api from "../../../api";
 import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
 
 const Produtos = () => {
   const [products, setProducts] = useState([]);
+  const [errors, setErrors] = useState({});
+
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [filiais, setFiliais] = useState([]);
   const [selectedFilial, setSelectedFilial] = useState("");
   const [message, setMessage] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null); // Categoria sendo editada
+
   const [newProduct, setNewProduct] = useState({
     nome: "",
     codigo_barras: "",
@@ -62,6 +70,95 @@ const Produtos = () => {
       setSelectedImage(file);
     }
   };
+
+  const validateProduct = () => {
+    const errors = {};
+  
+    // Validação do nome
+    if (!newProduct.nome.trim()) {
+      errors.nome = "O nome do produto é obrigatório.";
+    }
+  
+    // Validação do código de barras
+    if (!newProduct.codigo_barras || !/^\d+$/.test(newProduct.codigo_barras)) {
+      errors.codigo_barras = "O código de barras deve conter apenas números.";
+    }
+  
+    // Validação do preço de custo
+    if (!newProduct.preco_custo || isNaN(newProduct.preco_custo) || parseFloat(newProduct.preco_custo) <= 0) {
+      errors.preco_custo = "O preço de custo deve ser um número válido maior que zero.";
+    }
+  
+    // Validação do preço de venda
+    if (!newProduct.preco_venda || isNaN(newProduct.preco_venda) || parseFloat(newProduct.preco_venda) <= 0) {
+      errors.preco_venda = "O preço de venda deve ser um número válido maior que zero.";
+    } else if (parseFloat(newProduct.preco_venda) <= parseFloat(newProduct.preco_custo)) {
+      errors.preco_venda = "O preço de venda deve ser maior que o preço de custo.";
+    }
+  
+    return errors;
+  };
+  
+
+  const startEdit = (category) => {
+    setEditingCategory({ ...category }); // Configura a categoria para edição
+  };
+
+  const cancelEdit = () => {
+    setEditingCategory(null); // Cancela a edição
+  };
+
+  const saveCategory = async (id) => {
+    try {
+      await api.put(`/categorias/${id}`, { nome: editingCategory.nome });
+      showMessage("Categoria atualizada com sucesso.");
+      fetchCategories(); // Atualiza a lista de categorias
+      setEditingCategory(null); // Sai do modo de edição
+    } catch (error) {
+      console.error("Erro ao atualizar categoria:", error);
+      showMessage("Erro ao atualizar categoria.", "error");
+    }
+  };
+
+  const removeCategory = async (id) => {
+    try {
+      await api.delete(`/categorias/${id}`);
+      showMessage("Categoria removida com sucesso.");
+      fetchCategories(); // Atualiza a lista de categorias
+    } catch (error) {
+      console.error("Erro ao remover categoria:", error);
+      showMessage("Erro ao remover categoria.", "error");
+    }
+  };
+
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/categorias");
+      setCategories(response.data || []);
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error);
+      showMessage("Erro ao buscar categorias.", "error");
+    }
+  };
+
+  const addCategory = async () => {
+    if (!newCategory.trim()) {
+      showMessage("O nome da categoria não pode estar vazio.", "error");
+      return;
+    }
+
+    try {
+      await api.post("/categorias", { nome: newCategory });
+      showMessage("Categoria adicionada com sucesso.");
+      setNewCategory("");
+      fetchCategories(); // Atualiza a lista de categorias
+    } catch (error) {
+      console.error("Erro ao adicionar categoria:", error);
+      showMessage("Erro ao adicionar categoria.", "error");
+    }
+  };
+
 
 
   const uploadProductImage = async (productId) => {
@@ -117,9 +214,17 @@ const Produtos = () => {
   useEffect(() => {
     if (selectedFilial) {
       fetchProducts();
+      fetchCategories()
     }
   }, [selectedFilial]);
 
+  useEffect(() => {
+    if (message && message.type != "success") {
+      setIsModalOpen(false); // Fecha o modal ao exibir uma mensagem de sucesso
+    }
+  }, [message]);
+
+  
   const fetchProducts = async () => {
     try {
       const response = await api.get("/produtos");
@@ -153,39 +258,50 @@ const Produtos = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    console.log(`Campo atualizado: ${name}, Valor: ${value}`); // Debug
     setNewProduct({ ...newProduct, [name]: value });
   };
 
+
   const addOrUpdateProduct = async () => {
     console.log("Método addOrUpdateProduct foi chamado.");
+  
+    // Valida os campos
+    const validationErrors = validateProduct();
+    if (Object.keys(validationErrors).length > 0) {
+      // Exibe todas as mensagens de erro
+      Object.values(validationErrors).forEach((error) => showMessage(error, "error"));
+      return; // Interrompe o processo
+    }
+  
     try {
       let productId = null;
-
+  
       if (editingIndex !== null) {
         productId = products[editingIndex].id;
         console.log("Atualizando produto com ID:", productId);
         await api.put(`/produtos/${productId}`, {
-          ...newProduct,
+          ...newProduct, // Inclui categoria_id no payload
           margem: calculateMargin(),
         });
         showMessage("Produto atualizado com sucesso!");
       } else {
         const response = await api.post("/produtos", {
-          ...newProduct,
+          ...newProduct, // Inclui categoria_id no payload
           margem: calculateMargin(),
         });
         productId = response.data.id;
         console.log("Produto criado com ID:", productId);
         showMessage("Produto adicionado com sucesso!");
       }
-
+  
       if (selectedImage) {
         console.log("Chamando uploadProductImage...");
         await uploadProductImage(productId);
       } else {
         console.log("Nenhuma imagem foi selecionada.");
       }
-
+  
       fetchProducts();
       resetForm();
       setIsModalOpen(false);
@@ -194,6 +310,8 @@ const Produtos = () => {
       showMessage("Erro ao salvar produto", "error");
     }
   };
+  
+
 
 
 
@@ -231,6 +349,7 @@ const Produtos = () => {
       preco_custo: "",
       preco_venda: "",
       margem: "",
+      categoria_id: "",
     });
     setEditingIndex(null);
   };
@@ -285,7 +404,7 @@ const Produtos = () => {
           ) : (
             <FaExclamationCircle size={20} />
           )}
-          {message.text}
+          {message.text}        
         </Notification>
       )}
 
@@ -309,7 +428,88 @@ const Produtos = () => {
           onChange={(e) => setSearch(e.target.value)}
         />
         <Button onClick={() => setIsModalOpen(true)}>Adicionar Produto</Button>
+        <Button onClick={() => setIsCategoryModalOpen(true)}>Gerenciar Categorias</Button>
       </SearchContainer>
+      {/* Modal de Categorias */}
+      {isCategoryModalOpen && (
+        <ModalContainer>
+          <ModalContent>
+            <CloseButton onClick={() => setIsCategoryModalOpen(false)}>
+              &#10005;
+            </CloseButton>
+            <h2>Gerenciar Categorias</h2>
+
+            <DivCategory>
+              {/* Input para adicionar nova categoria */}
+              <Input
+                type="text"
+                placeholder="Nova Categoria"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+              />
+              <Button onClick={addCategory}>Adicionar Categoria</Button>
+            </DivCategory>
+
+            {/* Tabela de Categorias */}
+            <h3>Categorias Existentes:</h3>
+            <Table>
+              <thead>
+                <TableRow>
+                  <TableHeader>ID</TableHeader>
+                  <TableHeader>Nome</TableHeader>
+                  <TableHeader>Ações</TableHeader>
+                </TableRow>
+              </thead>
+              <tbody>
+                {categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell>{category.id}</TableCell>
+                    <TableCell>
+                      {editingCategory?.id === category.id ? (
+                        <Input
+                          type="text"
+                          value={editingCategory.nome}
+                          onChange={(e) =>
+                            setEditingCategory({
+                              ...editingCategory,
+                              nome: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        category.nome
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingCategory?.id === category.id ? (
+                        <>
+                          <ActionIcon onClick={() => saveCategory(category.id)}>
+                            <FaCheckCircle size={16} style={{ color: "green" }} />
+                          </ActionIcon>
+                          <ActionIcon onClick={() => cancelEdit()}>
+                            <FaExclamationCircle size={16} style={{ color: "orange" }} />
+                          </ActionIcon>
+                        </>
+                      ) : (
+                        <>
+                          <ActionIcon onClick={() => startEdit(category)}>
+                            <FaEdit size={16} style={{ color: "#FF9800" }} />
+                          </ActionIcon>
+                          <ActionIcon onClick={() => removeCategory(category.id)}>
+                            <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                          </ActionIcon>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </Table>
+          </ModalContent>
+        </ModalContainer>
+      )}
+
+
 
       {/* Modal de Cadastro de Produto */}
       {isModalOpen && (
@@ -325,20 +525,25 @@ const Produtos = () => {
                 value={newProduct.nome}
                 onChange={handleInputChange}
               />
+              {errors.nome && <span style={{ color: "red" }}>{errors.nome}</span>}
               <Input
-                type="text"
+                type="number"
                 name="codigo_barras"
                 placeholder="Código de Barras"
                 value={newProduct.codigo_barras}
                 onChange={handleInputChange}
               />
+              {errors.codigo_barras && <span style={{ color: "red" }}>{errors.codigo_barras}</span>}
+
               <Input
                 type="number"
                 name="preco_custo"
-                placeholder="Custo"
+                placeholder="Preço de Custo"
                 value={newProduct.preco_custo}
                 onChange={handleInputChange}
               />
+              {errors.preco_custo && <span style={{ color: "red" }}>{errors.preco_custo}</span>}
+
               <Input
                 type="number"
                 name="preco_venda"
@@ -346,19 +551,23 @@ const Produtos = () => {
                 value={newProduct.preco_venda}
                 onChange={handleInputChange}
               />
-              <Input
-                type="text"
-                name="categoria"
-                placeholder="Categoria do Produto"
-                value={newProduct.categoria || ""}
-                onChange={handleInputChange}
-              />
-              <Textarea
-                name="descricao"
-                placeholder="Descrição do Produto"
-                value={newProduct.descricao || ""}
-                onChange={handleInputChange}
-              />
+              {errors.preco_venda && <span style={{ color: "red" }}>{errors.preco_venda}</span>}
+
+              <Select
+                id="categoria"
+                name="categoria_id"
+                value={newProduct.categoria_id || ""}
+                onChange={(e) => handleInputChange(e)} // Atualiza o estado
+              >
+                <option value="">Selecione uma categoria</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.nome}
+                  </option>
+                ))}
+              </Select>
+
+
               <ImageContainer>
                 <input
                   type="file"
@@ -403,6 +612,7 @@ const Produtos = () => {
             <TableHeader>ID</TableHeader>
             <TableHeader>Imagem</TableHeader>
             <TableHeader>Nome</TableHeader>
+            <TableHeader>Categoria</TableHeader>
             <TableHeader>Código de Barras</TableHeader>
             <TableHeader>Custo</TableHeader>
             <TableHeader>Preço</TableHeader>
@@ -427,14 +637,17 @@ const Produtos = () => {
                 )}
               </TableCell>
               <TableCell>{product.nome}</TableCell>
+              <TableCell>
+                {product.categoria_nome}
+              </TableCell>
               <TableCell>{product.codigo_barras}</TableCell>
               <TableCell>R$ {product.preco_custo.toFixed(2)}</TableCell>
               <TableCell>R$ {product.preco_venda.toFixed(2)}</TableCell>
               <TableCell>{product.margem}%</TableCell>
-              <TableCell>{product.estoque}</TableCell>
+              <TableCell>{product.estoque | "0"}</TableCell>
               <TableCell>
                 <ActionIcon onClick={() => editProduct(index)}>
-                  <FaEdit size={16} style={{ color: "#2563eb" }} />
+                  <FaEdit size={16} style={{ color: "#FF9800" }} />
                 </ActionIcon>
                 <ActionIcon onClick={() => removeProduct(product.id)}>
                   <FaTrash size={16} style={{ color: "#f43f5e" }} />

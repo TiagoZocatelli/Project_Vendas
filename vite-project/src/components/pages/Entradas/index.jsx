@@ -150,10 +150,10 @@ const Entradas = () => {
       try {
         const [entriesRes, suppliersRes, productsRes, branchesRes] =
           await Promise.all([
-            fetch("http://127.0.0.1:5000/entradas"),
-            fetch("http://127.0.0.1:5000/fornecedores"),
-            fetch("http://127.0.0.1:5000/produtos"),
-            fetch("http://127.0.0.1:5000/filiais"), // Nova rota para filiais
+            fetch("http://192.168.1.56:5000/entradas"),
+            fetch("http://192.168.1.56:5000/fornecedores"),
+            fetch("http://192.168.1.56:5000/produtos"),
+            fetch("http://192.168.1.56:5000/filiais"), // Nova rota para filiais
           ]);
 
         const [entriesData, suppliersData, productsData, branchesData] =
@@ -301,7 +301,7 @@ const Entradas = () => {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/entradas-notas", {
+      const response = await fetch("http://192.168.1.56:5000/entradas-notas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -382,6 +382,7 @@ const Entradas = () => {
         <ItemsModalContainer onClick={closeModal}>
           <ItemsModalContent onClick={(e) => e.stopPropagation()}>
             <h2>Itens da Entrada</h2>
+            <CloseButton onClick={closeModal}>Fechar</CloseButton>
             <ItemsTable>
               <thead>
                 <TableRow>
@@ -406,7 +407,6 @@ const Entradas = () => {
                 ))}
               </tbody>
             </ItemsTable>
-            <CloseModalButton onClick={closeModal}>Fechar</CloseModalButton>
           </ItemsModalContent>
         </ItemsModalContainer>
       )}

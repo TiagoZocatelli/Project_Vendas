@@ -251,21 +251,23 @@ def excluir_cliente(id):
 
 @app.route("/produtos", methods=["GET"])
 def listar_produtos():
-    """Lista todos os produtos com os estoques por filial e imagem.""" 
+    """Lista todos os produtos com os estoques por filial, imagem e nome da categoria.""" 
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
     try:
         with conn.cursor() as cur:
-            # Consulta para buscar os produtos com estoques por filial e imagem
+            # Consulta para buscar os produtos, estoques, e nome da categoria
             cur.execute("""
                 SELECT 
                     p.id AS produto_id,
-                    p.nome,
+                    p.nome AS produto_nome,
                     p.codigo_barras,
                     p.preco_custo,
                     p.preco_venda,
                     p.margem,
+                    p.categoria_id,
+                    c.nome AS categoria_nome, -- Nome da categoria
                     p.ativo,
                     p.criado_em,
                     p.atualizado_em,
@@ -275,6 +277,7 @@ def listar_produtos():
                     p.imagem  -- Adiciona a imagem
                 FROM produtos p
                 LEFT JOIN estoque_filial ef ON p.id = ef.produto_id
+                LEFT JOIN categorias c ON p.categoria_id = c.id -- Junção com a tabela de categorias
             """)
             rows = cur.fetchall()
             
@@ -292,11 +295,13 @@ def listar_produtos():
                 if produto_id not in produtos:
                     produtos[produto_id] = {
                         "id": produto_id,
-                        "nome": row_dict["nome"],
+                        "nome": row_dict["produto_nome"],
                         "codigo_barras": row_dict["codigo_barras"],
                         "preco_custo": row_dict["preco_custo"],
                         "preco_venda": row_dict["preco_venda"],
                         "margem": row_dict["margem"],
+                        "categoria_id": row_dict["categoria_id"],
+                        "categoria_nome": row_dict["categoria_nome"],  # Adiciona o nome da categoria
                         "ativo": row_dict["ativo"],
                         "criado_em": row_dict["criado_em"],
                         "atualizado_em": row_dict["atualizado_em"],
@@ -324,6 +329,7 @@ def listar_produtos():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
 
 @app.route('/produtos/<int:id>/imagem', methods=['PUT'])
 def atualizar_imagem_produto(id):
@@ -393,6 +399,111 @@ def excluir_imagem_produto(id):
     finally:
         conn.close()
 
+@app.route("/categorias", methods=["GET"])
+def listar_categorias():
+    conn = get_db_connection()  # Função para conectar ao banco de dados
+
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, nome FROM categorias")
+            categorias = cur.fetchall()  # Obtém todas as categorias
+
+        # Converte os resultados em um formato JSON-friendly
+        categorias_list = [{"id": row[0], "nome": row[1]} for row in categorias]
+
+        return jsonify(categorias_list), 200
+    except Exception as e:
+        return jsonify({"error": f"Erro ao listar categorias: {str(e)}"}), 500
+    finally:
+        conn.close()  # Fecha a conexão com o banco de dados
+
+
+@app.route("/categorias", methods=["POST"])
+def criar_categoria():
+    data = request.json  # Obtém os dados JSON enviados na requisição
+    conn = get_db_connection()  # Função para conectar ao banco de dados
+
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO categorias (nome)
+                VALUES (%s) RETURNING id
+            """, (
+                data["nome"],  # Nome da categoria
+            ))
+            categoria_id = cur.fetchone()[0]  # Obtém o ID da categoria criada
+            conn.commit()  # Confirma a transação no banco de dados
+
+        return jsonify({"message": "Categoria criada com sucesso.", "id": categoria_id}), 201
+    except Exception as e:
+        conn.rollback()  # Reverte a transação em caso de erro
+        return jsonify({"error": f"Erro ao criar categoria: {str(e)}"}), 500
+    finally:
+        conn.close()  # Fecha a conexão com o banco de dados
+
+@app.route("/categorias/<int:id>", methods=["PUT"])
+def atualizar_categoria(id):
+    data = request.json
+    conn = get_db_connection()  # Conexão com o banco de dados
+
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            # Atualiza apenas o campo 'nome'
+            cur.execute("""
+                UPDATE categorias
+                SET nome = %s
+                WHERE id = %s
+            """, (
+                data.get("nome"),  # Novo nome da categoria
+                id                 # ID da categoria a ser atualizada
+            ))
+
+            # Verifica se a categoria foi encontrada e atualizada
+            if cur.rowcount == 0:
+                return jsonify({"error": "Categoria não encontrada."}), 404
+
+            conn.commit()  # Confirma a transação
+        return jsonify({"message": "Categoria atualizada com sucesso."}), 200
+    except Exception as e:
+        conn.rollback()  # Reverte a transação em caso de erro
+        return jsonify({"error": f"Erro ao atualizar categoria: {str(e)}"}), 500
+    finally:
+        conn.close()  # Fecha a conexão com o banco
+
+
+# Deletar categoria
+@app.route("/categorias/<int:id>", methods=["DELETE"])
+def deletar_categoria(id):
+    conn = get_db_connection()
+
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM categorias
+                WHERE id = %s
+            """, (id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Categoria não encontrada."}), 404
+
+            conn.commit()  # Confirma a exclusão
+        return jsonify({"message": "Categoria deletada com sucesso."}), 200
+    except Exception as e:
+        conn.rollback()  # Reverte a transação em caso de erro
+        return jsonify({"error": f"Erro ao deletar categoria: {str(e)}"}), 500
+    finally:
+        conn.close()  # Fecha a conexão com o banco
 
 @app.route("/produtos", methods=["POST"])
 def criar_produto():
@@ -405,13 +516,14 @@ def criar_produto():
         with conn.cursor() as cur:
             # Inserir o produto na tabela `produtos`
             cur.execute("""
-                INSERT INTO produtos (nome, codigo_barras, preco_custo, preco_venda)
-                VALUES (%s, %s, %s, %s) RETURNING id
+                INSERT INTO produtos (nome, codigo_barras, preco_custo, preco_venda, categoria_id)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id
             """, (
                 data["nome"],
                 data.get("codigo_barras"),
                 data["preco_custo"],
-                data["preco_venda"]
+                data["preco_venda"],
+                data.get("categoria_id")  # `categoria_id` deve ser incluído no corpo da requisição
             ))
             produto_id = cur.fetchone()[0]
 
@@ -435,7 +547,6 @@ def criar_produto():
     finally:
         conn.close()
 
-
 @app.route("/produtos/<int:id>", methods=["PUT"])
 def atualizar_produto(id):
     """Atualiza os dados de um produto e seus estoques por filial."""
@@ -448,13 +559,14 @@ def atualizar_produto(id):
             # Atualizar os dados do produto
             cur.execute("""
                 UPDATE produtos
-                SET nome = %s, codigo_barras = %s, preco_custo = %s, preco_venda = %s
+                SET nome = %s, codigo_barras = %s, preco_custo = %s, preco_venda = %s, categoria_id = %s
                 WHERE id = %s
             """, (
                 data["nome"],
                 data.get("codigo_barras"),
                 data["preco_custo"],
                 data["preco_venda"],
+                data.get("categoria_id"),  # Atualizar a categoria do produto
                 id
             ))
 
@@ -837,7 +949,7 @@ def excluir_fornecedor(id):
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
-# =================== Inicialização ===================
+        
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
+

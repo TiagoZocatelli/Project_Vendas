@@ -3,10 +3,10 @@ import styled from "styled-components";
 export const AsideContainer = styled.aside`
   position: fixed;
   top: 0;
-  left: ${(props) => (props.$isOpen ? "0" : "-240px")};
-  width: 180px;
+  left: ${(props) => (props.$isOpen ? "0" : "-260px")};
+  width: 260px;
   height: 100vh;
-  background: linear-gradient(145deg, #102c57, #0056b3);
+  background: linear-gradient(145deg, #102c57, #0056b3); /* Gradiente suave */
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -15,80 +15,141 @@ export const AsideContainer = styled.aside`
   transition: left 0.3s ease;
 `;
 
+
 export const AsideMenu = styled.ul`
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20px; /* Espaçamento maior entre os itens */
 `;
 
-export const AsideItem = styled.li`
-  position: relative;
-  a,
-  div {
-    text-decoration: none;
-    color: #e3f2ff;
-    font-weight: 600;
-    padding: 10px 15px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease, color 0.3s ease;
-  }
+export const BigButton = styled.button`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 120px; /* Largura maior para destaque */
+  height: 120px; /* Altura maior */
+  background: ${(props) => props.bgColor || "#0056b3"}; /* Cor de fundo dinâmica */
+  color: ${(props) => props.color || "#ffffff"}; /* Cor do texto dinâmica */
+  border: none;
+  border-radius: 12px; /* Bordas arredondadas */
+  cursor: pointer;
+  font-size: 1.1rem; /* Texto maior */
+  font-weight: bold;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra para destaque */
+  transition: transform 0.2s ease, background 0.3s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #40bdf5;
+    transform: scale(1.05); /* Leve aumento no hover */
+    background: ${(props) => props.hoverColor || "#003d80"}; /* Cor no hover */
   }
 
   svg {
-    font-size: 1.2rem;
+    font-size: 2rem; /* Ícone maior */
+    margin-bottom: 8px; /* Espaço entre ícone e texto */
   }
 `;
+
+
+export const AsideItem = styled.li`
+  display: flex;
+  justify-content: flex-start; /* Alinha o conteúdo à esquerda */
+  align-items: center; /* Centraliza verticalmente ícone e texto */
+  width: 100%;
+  height: 90px; /* Altura consistente para todos os itens */
+  padding: 0 20px; /* Espaçamento interno */
+  background: ${(props) => props.bgColor || "#0056b3"};
+  color: ${(props) => props.color || "#ffffff"};
+  font-size: 1rem; /* Tamanho do texto */
+  font-weight: bold;
+  border-radius: 16px; /* Bordas arredondadas */
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    background: ${(props) => props.hoverColor || "#003d80"};
+    transform: translateY(-5px); /* Eleva levemente no hover */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Aumenta a sombra no hover */
+  }
+
+  svg {
+    font-size: 3rem; /* Tamanho fixo do ícone */
+    flex-shrink: 0; /* Evita que o ícone seja redimensionado */
+    margin-right: 16px; /* Espaçamento entre ícone e texto */
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit; /* Herda a cor do item */
+    display: flex;
+    align-items: center; /* Centraliza o texto com o ícone */
+    gap: 10px; /* Espaçamento entre ícone e texto */
+    width: 100%;
+    overflow: hidden; /* Garante que o texto muito longo não quebre */
+    text-overflow: ellipsis; /* Adiciona reticências ao texto muito longo */
+    white-space: nowrap; /* Evita quebra de linha */
+  }
+`;
+
 
 export const DropdownMenu = styled.ul`
   position: absolute;
   top: 100%;
-  left: 130px;
-  background: linear-gradient(145deg, #102c57, #0056b3);
-  border-radius: 8px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Sombra sólida */
+  left: 0;
+  background: #ffffff; /* Fundo branco */
+  border-radius: 12px; /* Bordas arredondadas */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra suave */
   padding: 10px;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 10px; /* Espaçamento entre itens */
 
-  li a {
-    text-decoration: none;
-    color: #ffffff; /* Branco para texto */
-    font-size: 0.9rem;
+  li {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    transition: background 0.3s ease, transform 0.2s ease;
+    gap: 12px; /* Espaço entre ícone e texto */
+    padding: 12px 15px;
+    border-radius: 8px; /* Bordas arredondadas */
+    color: #ffffff; /* Texto branco */
+    font-weight: bold;
+    font-size: 1.1rem; /* Texto maior */
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+
+    /* Cor de fundo dinâmica */
+    background: ${(props) => props.bgColor || "#0056b3"};
 
     &:hover {
-      background: #0056b3; /* Azul escuro sólido no hover */
-      color: #ffffff; /* Mantém o texto branco */
-      transform: scale(1.05); /* Leve aumento */
-      box-shadow: 0 4px 8px #0056b3; /* Realce no hover */
+      transform: scale(1.05); /* Leve aumento no hover */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra no hover */
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit; /* Herda a cor do texto */
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    svg {
+      font-size: 2.2rem; /* Ícones grandes */
     }
   }
 `;
 
 
 
+
 export const HeaderContainer = styled.header`
   position: fixed;
   top: 0;
-  left: ${(props) => (props.$isAsideOpen ? "180px" : "0")};
+  left: ${(props) => (props.$isAsideOpen ? "260px" : "0")};
   width: calc(100% - ${(props) => (props.$isAsideOpen ? "180px" : "0")});
   height: 60px;
   background: linear-gradient(145deg, #102c57, #0056b3);
@@ -96,7 +157,7 @@ export const HeaderContainer = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 100px;
   z-index: 1001;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra leve */
   transition: left 0.3s ease, width 0.3s ease;
@@ -143,19 +204,24 @@ export const SettingsIcon = styled.div`
 `;
 
 export const ProfileButton = styled.button`
-  background: #0056b3; /* Fundo cinza escuro */
-  color: #ffffff; /* Texto branco */
+  background: ${(props) => props.bgColor || "#FF9800"}; /* Cor de fundo padrão */
+  color: ${(props) => props.color || "#ffffff"}; /* Texto branco */
   font-size: 1rem;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 8px 16px; /* Espaçamento interno */
   border: none;
-  border-radius: 6px;
+  border-radius: 6px; /* Bordas arredondadas */
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: background 0.3s ease;
+  gap: 8px; /* Espaçamento entre ícone e texto */
+  transition: background 0.3s ease, transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.95); /* Leve redução no clique */
+  }
 `;
+
 
 export const LogoutButton = styled(ProfileButton)`
   background: #dc2626; /* Vermelho para botão de logout */

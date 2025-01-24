@@ -1,7 +1,7 @@
 import styled from "styled-components";
 
 export const Container = styled.div`
-  margin-left: 180px;
+  margin-left: 260px;
   margin-top: 48px;
   padding: 20px;
   min-height: 100vh;
@@ -259,27 +259,34 @@ export const ModalContainer = styled.div`
   align-items: center;
   z-index: 9999;
   padding: 20px; /* Espaçamento para bordas */
-`;
 
-export const ModalContent = styled.div`
-  background: #ffffff; /* Fundo branco */
-  padding: 30px;
-  border-radius: 12px; /* Bordas arredondadas */
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  width: 100%; /* Usa 90% da largura da tela */
-  max-width: 1500px; /* Limita a largura máxima */
-  max-height: 100vh; /* Limita a altura máxima a 80% da altura da viewport */
-  overflow-y: auto; /* Adiciona rolagem se o conteúdo ultrapassar a altura */
-  color: #333333;
-
-  h2 {
-    font-size: 1.3rem; /* Tamanho do título ajustado */
-    margin-bottom: 15px;
-    text-align: center;
+  h3 {
+    margin-top: 16px;
+    margin-bottom: 16px;
   }
 `;
 
 
+export const DivCategory = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+`;
+
+export const ModalContent = styled.div`
+  display: flex; /* Ativa o flexbox */
+  flex-direction: column; /* Itens empilhados verticalmente */
+  justify-content: flex-start; /* Alinha os itens no início */
+  align-items: stretch; /* Permite que o botão siga a largura dos filhos */
+  background: #ffffff;
+  padding: 70px;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra */
+  width: 100%;
+  max-width: 1500px;
+  position: relative; /* Não mais necessário absoluto */
+`;
 
 
 export const Textarea = styled.textarea`
@@ -326,9 +333,9 @@ export const CloseButton = styled.button`
   color: #ffffff; /* Texto branco */
   cursor: pointer;
   position: absolute;
-  top: 100px;
-  right: 20px; /* Distância da direita */
-  padding: 10px 15px; /* Espaçamento interno */
+  top: 5px;
+  right: 5px; /* Distância da direita */
+  padding: 5px 10px; /* Espaçamento interno */
   border-radius: 50%; /* Botão arredondado */
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Sombra para profundidade */
   transition: all 0.3s ease;
