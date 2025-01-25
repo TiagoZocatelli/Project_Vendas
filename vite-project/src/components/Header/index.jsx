@@ -106,8 +106,10 @@ const Header = () => {
             <SettingsIcon onClick={() => setIsSettingsModalOpen(true)}>
               <FaCog />
             </SettingsIcon>
-            <ProfileButton onClick={() => setIsProfileModalOpen(true)}>
-              <FaUsers /> Perfil
+            <ProfileButton>
+              <Link to="/filiais">
+            <FaUsers /> Filiais
+            </Link>
             </ProfileButton>
             <LogoutButton>
               <FaSignInAlt /> Sair

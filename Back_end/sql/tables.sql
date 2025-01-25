@@ -80,9 +80,11 @@ CREATE TABLE clientes (
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Atualizar a tabela 'entradas' para incluir a filial
 CREATE TABLE entradas (
     id SERIAL PRIMARY KEY,
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE CASCADE, -- Relacionado ao fornecedor
+    filial_id INT REFERENCES filiais(id) ON DELETE CASCADE, -- Relacionado à filial
     data_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Data da entrada
     total NUMERIC(12, 2) NOT NULL, -- Total da entrada
     observacoes TEXT, -- Observações opcionais
@@ -90,12 +92,13 @@ CREATE TABLE entradas (
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
+-- Atualizar a tabela 'itens_entrada' para incluir a filial
 CREATE TABLE itens_entrada (
     id SERIAL PRIMARY KEY,
     entrada_id INT REFERENCES entradas(id) ON DELETE CASCADE, -- Relacionado à entrada
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE, -- Relacionado ao produto
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL, -- Relacionado ao fornecedor
+    filial_id INT REFERENCES filiais(id) ON DELETE CASCADE, -- Relacionado à filial
     quantidade INTEGER NOT NULL, -- Quantidade adquirida
     preco_custo NUMERIC(12, 2) NOT NULL, -- Preço de custo do produto na entrada
     subtotal NUMERIC(12, 2) GENERATED ALWAYS AS (quantidade * preco_custo) STORED -- Subtotal calculado

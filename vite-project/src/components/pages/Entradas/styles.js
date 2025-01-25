@@ -78,15 +78,42 @@ export const CloseButton = styled.button`
   }
 `;
 
+export const Button = styled.button`
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
 
-export const AddFormContainer = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  position: relative; /* Necessário para que o SuggestionsList funcione corretamente */
+  &:hover {
+    background-color: #1d4ed8;
+  }
+
+  &:active {
+    background-color: #1e40af;
+  }
+
+  &:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
 `;
 
+export const AddFormContainer = styled.div`
+flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+`;
 export const TableContainer = styled.div`
   flex: 1; /* A tabela ocupa 1 parte do espaço */
   overflow-y: auto; /* Permite rolagem caso a tabela seja muito grande */
@@ -150,14 +177,6 @@ export const SearchBar = styled.input`
     outline: none;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
-`;
-export const Select = styled.select`
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
 `;
 
 export const AddForm = styled.div`
@@ -233,6 +252,7 @@ export const Input = styled.input`
     box-shadow: 0 0 8px rgba(37, 99, 235, 0.4); /* Sombra no foco */
   }
 `;
+
 export const SelectedProductContainer = styled.div`
   display: flex;
   align-items: center; /* Centraliza o conteúdo verticalmente */
@@ -275,86 +295,6 @@ export const ProductImage = styled.img`
   border-radius: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Sombra mais leve */
   border: 1px solid #e5e7eb;
-`;
-
-
-export const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-  font-size: 0.9rem; /* Fonte menor */
-  border-radius: 6px; /* Bordas mais suaves */
-  overflow: hidden;
-
-  thead {
-    background: #f3f4f6;
-  }
-
-  th,
-  td {
-    padding: 8px 10px; /* Reduz espaçamento interno */
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-    color: #374151;
-  }
-
-  th {
-    font-weight: bold;
-    font-size: 0.9rem; /* Reduz tamanho da fonte no cabeçalho */
-  }
-
-  td {
-    font-size: 0.85rem; /* Fonte menor nas células */
-  }
-
-  tbody tr:hover {
-    background: #f9fafb; /* Fundo mais claro no hover */
-  }
-
-  img {
-    width: 40px; /* Reduz tamanho da imagem */
-    height: 40px; /* Reduz tamanho da imagem */
-    object-fit: cover;
-    border-radius: 4px;
-  }
-`;
-
-export const TableHeader = styled.th`
-  background: #f5f5f5;
-  color: #333333;
-  padding: 10px;
-  font-size: 0.9rem; /* Fonte menor */
-  font-weight: bold;
-  text-align: left;
-  border-bottom: 2px solid #dddddd;
-`;
-
-export const TableRow = styled.tr`
-  &:nth-child(even) {
-    background: #fafafa;
-  }
-
-  &:nth-child(odd) {
-    background: #ffffff;
-  }
-
-  &:hover {
-    background: #f0f0f0;
-    cursor: pointer;
-    transition: background 0.2s ease;
-  }
-`;
-
-export const TableCell = styled.td`
-  padding: 8px 10px; /* Reduz espaçamento interno */
-  border-bottom: 1px solid #eeeeee;
-  color: #666666;
-  font-size: 0.85rem; /* Fonte menor */
-  text-align: left;
-
-  &:last-child {
-    text-align: right;
-  }
 `;
 
 export const ItemsModalContainer = styled.div`
@@ -454,27 +394,5 @@ export const ActionIcon = styled.div`
     &:hover {
       transform: scale(1.2); /* Animação no hover */
     }
-  }
-`;
-
-export const Button = styled.button`
-  background-color: #0056b3;
-  color: #ffffff;
-  font-size: 0.8rem; /* Reduz tamanho da fonte */
-  font-weight: 600;
-  padding: 6px 12px; /* Reduz padding */
-  border: none;
-  border-radius: 6px; /* Bordas mais suaves */
-  cursor: pointer;
-  transition: background 0.1s ease, transform 0.2s ease;
-  margin-bottom: 4px;
-  margin-left: 4px;
-
-  &:hover {
-    transform: scale(1.02);
-  }
-
-  &:active {
-    transform: scale(0.95);
   }
 `;

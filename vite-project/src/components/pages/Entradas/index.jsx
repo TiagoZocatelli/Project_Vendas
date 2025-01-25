@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  Container,
-  Table,
-  TableHeader,
-  TableRow,
-  TableCell,
-  Button,
   ModalContainer,
   ModalContent,
   AddForm,
   Input,
   SuggestionsList,
-  Select,
   CloseButton,
   TableContainer,
   AddFormContainer,
@@ -21,15 +14,36 @@ import {
   ActionIcon,
   ItemsModalContainer,
   ItemsModalContent,
-  CloseModalButton,
   ItemsTable,
 } from "./styles";
-import { Notification } from "../Produtos/styles";
+
+import {
+  Container,
+  Table,
+  TableHeader,
+  TableRow,
+  TableCell,
+  Button,
+  Notification,
+  Select,
+  LabelContainer,
+  ConfirmModalContainer,
+  ConfirmModalContent,
+  ConfirmButton,
+  ConfirmCancelButton,
+  ConfirmButtonContainer
+} from '../../../styles/utils'
 import { useRef } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
 
 const Entradas = () => {
+  const [filters, setFilters] = useState({
+    branch: "",
+    supplier: "",
+    minValue: "",
+    maxValue: "",
+  });
   const [entries, setEntries] = useState([]);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -42,6 +56,8 @@ const Entradas = () => {
   const [editItemIndex, setEditItemIndex] = useState(null);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState(null);
   const productSearchRef = useRef(null);
   const [notification, setNotification] = useState("");
   const [highlightedSupplierIndex, setHighlightedSupplierIndex] = useState(-1); // Índice destacado para fornecedores
@@ -65,6 +81,60 @@ const Entradas = () => {
     quantity: "",
     cost: "",
   });
+
+  const filterEntries = () => {
+    return entries.filter((entry) => {
+      const { branch, supplier, minValue, maxValue } = filters;
+
+      const filialNome = entry.entrada?.filial_nome || ""; // Garante que não será undefined
+      const fornecedorNome = entry.entrada?.fornecedor_nome || ""; // Garante que não será undefined
+
+      const matchesBranch = !branch || filialNome.toLowerCase().includes(branch.toLowerCase());
+      const matchesSupplier = !supplier || fornecedorNome.toLowerCase().includes(supplier.toLowerCase());
+      const matchesMinValue = !minValue || entry.entrada.total >= parseFloat(minValue);
+      const matchesMaxValue = !maxValue || entry.entrada.total <= parseFloat(maxValue);
+
+      return matchesBranch && matchesSupplier && matchesMinValue && matchesMaxValue;
+    });
+  };
+
+
+  const openConfirmDeleteModal = (entry) => {
+    setEntryToDelete(entry);
+    setIsConfirmDeleteOpen(true);
+  };
+
+  // Função para confirmar a exclusão
+  const handleDeleteConfirmed = async () => {
+    if (!entryToDelete) return;
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:5000/entradas/${entryToDelete.id}/cancelar`,
+        { method: "DELETE" }
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setEntries((prevEntries) =>
+          prevEntries.filter((entry) => entry.entrada.id !== entryToDelete.id)
+        );
+        setNotification({ message: data.message, type: "success" });
+      } else {
+        setNotification({ message: data.error, type: "error" });
+      }
+    } catch (error) {
+      console.error("Erro ao cancelar entrada:", error);
+      setNotification({ message: "Erro ao cancelar entrada.", type: "error" });
+    } finally {
+      // Fecha o modal e limpa a entrada selecionada
+      setIsConfirmDeleteOpen(false);
+      setEntryToDelete(null);
+    }
+  };
+
+
+
 
   const handleSupplierKeyDown = (e) => {
     if (filteredSuppliers.length === 0) return;
@@ -150,10 +220,10 @@ const Entradas = () => {
       try {
         const [entriesRes, suppliersRes, productsRes, branchesRes] =
           await Promise.all([
-            fetch("http://192.168.1.56:5000/entradas"),
-            fetch("http://192.168.1.56:5000/fornecedores"),
-            fetch("http://192.168.1.56:5000/produtos"),
-            fetch("http://192.168.1.56:5000/filiais"), // Nova rota para filiais
+            fetch("http://127.0.0.1:5000/entradas"),
+            fetch("http://127.0.0.1:5000/fornecedores"),
+            fetch("http://127.0.0.1:5000/produtos"),
+            fetch("http://127.0.0.1:5000/filiais"),
           ]);
 
         const [entriesData, suppliersData, productsData, branchesData] =
@@ -164,10 +234,18 @@ const Entradas = () => {
             branchesRes.json(),
           ]);
 
+        // Validar se entriesData é um array e contém entradas válidas
+        if (!Array.isArray(entriesData)) {
+          console.error("Entradas inválidas recebidas:", entriesData);
+          setEntries([]);
+          return;
+        }
+
         setEntries(entriesData);
+        console.log("Entries Data:", entriesData);
         setSuppliers(suppliersData);
         setProducts(productsData);
-        setBranches(branchesData); // Define as filiais
+        setBranches(branchesData);
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
       }
@@ -175,6 +253,8 @@ const Entradas = () => {
 
     fetchData();
   }, []);
+
+
 
   useEffect(() => {
     const total = newEntry.itens.reduce(
@@ -199,16 +279,6 @@ const Entradas = () => {
   };
 
   const openAddModal = () => setIsAddModalOpen(true);
-
-  const setNewProductItem = (product) => {
-    setNewItem((prev) => ({
-      ...prev,
-      productId: product.id,
-      productName: product.nome,
-      barcode: product.codigo_barras,
-      imagem: product.imagem, // Armazena a imagem do produto
-    }));
-  };
 
 
   const closeAddModal = () => {
@@ -238,22 +308,38 @@ const Entradas = () => {
     setHighlightedProductIndex(-1);
   };
 
+
+
   const addItemToNewEntry = () => {
     if (!newItem.productId || !newItem.quantity || !newItem.cost) {
       showNotification("Por favor, preencha todos os campos do item.", "error");
       return;
     }
 
+    // Verifica duplicidade apenas quando não estamos no modo de edição
+    if (editItemIndex === null) {
+      const existingItem = newEntry.itens.find(
+        (item) => item.productId === newItem.productId
+      );
+
+      if (existingItem) {
+        showNotification("Este produto já foi adicionado à lista.", "error");
+        return;
+      }
+    }
+
     const updatedItems = [...newEntry.itens];
     if (editItemIndex !== null) {
+      // Atualiza o item existente na posição correta
       updatedItems[editItemIndex] = { ...newItem };
     } else {
+      // Adiciona um novo item
       updatedItems.push({ ...newItem });
     }
 
     setNewEntry((prev) => ({
       ...prev,
-      itens: updatedItems, // Atualiza os itens
+      itens: updatedItems,
       branchId: prev.branchId, // Mantém a filial selecionada
     }));
 
@@ -265,11 +351,12 @@ const Entradas = () => {
       cost: "",
     });
 
-    setEditItemIndex(null);
+    setEditItemIndex(null); // Sai do modo de edição
 
     // Retorna o foco para o campo de pesquisa de produtos
     productSearchRef.current.focus();
   };
+
 
 
   const editItem = (index) => {
@@ -284,7 +371,7 @@ const Entradas = () => {
 
   const submitNewEntry = async () => {
     if (!newEntry.branchId || !newEntry.supplierId || newEntry.itens.length === 0) {
-      showNotification("Por favor, preencha os campos obrigatórios", "error");
+      showNotification("Por favor, preencha os campos obrigatórios.", "error");
       return;
     }
 
@@ -295,25 +382,29 @@ const Entradas = () => {
       observacoes: newEntry.observacoes,
       itens: newEntry.itens.map((item) => ({
         produto_id: item.productId,
-        quantidade: item.quantity,
-        preco_custo: item.cost,
+        quantidade: parseInt(item.quantity, 10), // Converte para inteiro
+        preco_custo: parseFloat(item.cost), // Converte para número
       })),
     };
 
+    console.log("Payload enviado ao backend:", payload); // Log para depuração
+
     try {
-      const response = await fetch("http://192.168.1.56:5000/entradas-notas", {
+      const response = await fetch("http://127.0.0.1:5000/entradas-notas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
+        const newEntryData = await response.json();
+        console.log("Resposta do backend:", newEntryData); // Log da resposta
         showNotification("Nota lançada com sucesso!", "success");
         closeAddModal();
-        const newEntryData = await response.json();
         setEntries([...entries, newEntryData]);
       } else {
         const errorData = await response.json();
+        console.error("Erro do backend:", errorData);
         showNotification(`Erro ao lançar nota: ${errorData.error}`, "error");
       }
     } catch (error) {
@@ -321,6 +412,8 @@ const Entradas = () => {
       showNotification("Erro ao lançar nota.", "error");
     }
   };
+
+
 
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
@@ -334,49 +427,106 @@ const Entradas = () => {
 
   return (
     <Container>
+
+      {/* Modal de Confirmação */}
+      {isConfirmDeleteOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar Exclusão</h2>
+            <p>
+              Tem certeza de que deseja excluir a entrada <br /> ID:{" "}
+              {entryToDelete?.id}?
+            </p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={handleDeleteConfirmed}>
+                Sim, Excluir
+              </ConfirmButton>
+              <ConfirmCancelButton onClick={() => setIsConfirmDeleteOpen(false)}>
+                Cancelar
+              </ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
       {notification && (
         <Notification type={notification.type}>{notification.message}</Notification>
       )}
-
       <h1>Entradas de Compras</h1>
       <Button onClick={openAddModal}>Lançar Nota</Button>
-      <Table>
-        <thead>
-          <TableRow>
-            <TableHeader>ID</TableHeader>
-            <TableHeader>Data</TableHeader>
-            <TableHeader>Total (R$)</TableHeader>
-            <TableHeader>Filial</TableHeader>
-            <TableHeader>Fornecedor</TableHeader>
-            <TableHeader>Ações</TableHeader>
-          </TableRow>
-        </thead>
-        <tbody>
-          {entries.map((entry, index) => {
-            // Verificação de segurança
-            if (!entry || !entry.entrada || !entry.entrada.id) {
-              console.warn(`Entrada inválida encontrada na posição ${index}`, entry);
-              return null; // Ignora entradas inválidas
-            }
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <Input
+          placeholder="Filtrar por Filial"
+          value={filters.branch}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, branch: e.target.value }))
+          }
+        />
+        <Input
+          placeholder="Filtrar por Fornecedor"
+          value={filters.supplier}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, supplier: e.target.value }))
+          }
+        />
+        <Input
+          type="number"
+          placeholder="Valor Mínimo"
+          value={filters.minValue}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, minValue: e.target.value }))
+          }
+        />
+        <Input
+          type="number"
+          placeholder="Valor Máximo"
+          value={filters.maxValue}
+          onChange={(e) =>
+            setFilters((prev) => ({ ...prev, maxValue: e.target.value }))
+          }
+        />
+      </div>
+      <TableContainer>
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>ID</TableHeader>
+              <TableHeader>Data</TableHeader>
+              <TableHeader>Total (R$)</TableHeader>
+              <TableHeader>Filial</TableHeader>
+              <TableHeader>Fornecedor</TableHeader>
+              <TableHeader>Ações</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filterEntries().map((entry, index) => {
+              if (!entry.entrada || !entry.entrada.id) {
+                console.warn(`Entrada inválida no índice ${index}:`, entry);
+                return null; // Ignora entradas inválidas
+              }
 
-            return (
-              <TableRow key={entry.entrada.id}>
-                <TableCell>{entry.entrada.id}</TableCell>
-                <TableCell>
-                  {new Date(entry.entrada.data_entrada).toLocaleDateString()}
-                </TableCell>
-                <TableCell>R$ {parseFloat(entry.entrada.total).toFixed(2)}</TableCell>
-                <TableCell>{entry.entrada.filial_nome}</TableCell>
-                <TableCell>{entry.entrada.fornecedor_nome}</TableCell>
-                <TableCell>
-                  <Button onClick={() => openModal(entry.itens)}>Ver Itens</Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </tbody>
-
-      </Table>
+              return (
+                <TableRow key={entry.entrada.id}>
+                  <TableCell>{entry.entrada.id}</TableCell>
+                  <TableCell>
+                    {new Date(entry.entrada.data_entrada).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>R$ {parseFloat(entry.entrada.total).toFixed(2)}</TableCell>
+                  <TableCell>{entry.entrada.filial_nome}</TableCell>
+                  <TableCell>{entry.entrada.fornecedor_nome}</TableCell>
+                  <TableCell>
+                    <ActionIcon onClick={() => openModal(entry.itens)}>
+                    <FaEdit size={16} style={{ color: "#FF9800" }} />
+                    </ActionIcon>
+                    <ActionIcon onClick={() => openConfirmDeleteModal(entry.entrada)}>
+                      <FaTrash color="#e63946" />
+                    </ActionIcon>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableContainer>
 
       {isModalOpen && (
         <ItemsModalContainer onClick={closeModal}>
@@ -417,19 +567,22 @@ const Entradas = () => {
             <AddFormContainer>
               <h2>Lançar Nota</h2>
               <AddForm>
-                <Select
-                  value={newEntry.branchId}
-                  onChange={(e) =>
-                    setNewEntry((prev) => ({ ...prev, branchId: e.target.value }))
-                  }
-                >
-                  <option value="">Selecione a Filial</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.nome}
-                    </option>
-                  ))}
-                </Select>
+                <LabelContainer>
+                  <label>Filial:</label>
+                  <select
+                    value={newEntry.branchId}
+                    onChange={(e) =>
+                      setNewEntry((prev) => ({ ...prev, branchId: e.target.value }))
+                    }
+                  >
+                    <option value="">Selecione a Filial</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.nome}
+                      </option>
+                    ))}
+                  </select>
+                </LabelContainer>
 
                 <Input
                   placeholder="Pesquisar Fornecedor"

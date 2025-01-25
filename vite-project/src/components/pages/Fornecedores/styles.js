@@ -1,49 +1,5 @@
 import styled from "styled-components";
 
-export const Container = styled.div`
- margin-left: 260px;
-  padding: 20px;
-  min-height: 100vh;
-  color: #1e293b;
-  margin-top: 48px;
-
-  @media (max-width: 768px) {
-    margin-left: 0;
-    padding: 15px;
-  }
-
-  h1 {
-    text-align: center;
-    margin-bottom: 16px;
-  }
-`;
-
-export const Label = styled.label`
-  font-size: 1rem;
-  color: #555555;
-  font-weight: bold;
-`;
-
-export const SearchBar = styled.input`
-  width: 100%;
-  max-width: 500px;
-  padding: 10px 15px;
-  margin-bottom: 20px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #1e293b;
-  background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-
-  &:focus {
-    border-color: #3b82f6;
-    outline: none;
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-  }
-`;
-
 export const AddForm = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -60,122 +16,114 @@ export const AddForm = styled.div`
   }
 `;
 
+export const DivHeader = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+`
+
+export const FormContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap; /* Permite que os inputs "quebrem" linha */
+  justify-content: space-between; /* Espaçamento entre os inputs */
+  gap: 20px; /* Espaçamento entre os itens */
+  margin-top: 20px;
+`;
+
 export const Input = styled.input`
   flex: 1;
-  min-width: 200px;
-  padding: 10px 15px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  min-width: 300px; /* Largura mínima dos inputs */
+  max-width: 48%; /* Ocupa no máximo 48% do espaço para alinhar 2 por linha */
+  padding: 12px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   font-size: 1rem;
-  color: #1e293b;
-  background: #f1f5f9;
+  color: #0f172a;
+  background: #f8fafc;
   transition: all 0.3s ease;
 
   &:focus {
-    border-color: #3b82f6;
+    border-color: #2563eb;
     outline: none;
-    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
-  }
-`;
-
-
-export const Button = styled.button`
-  background-color: #0056b3;
-  color: #ffffff;
-  font-size: 0.8rem; /* Reduz tamanho da fonte */
-  font-weight: 600;
-  padding: 6px 12px; /* Reduz padding */
-  border: none;
-  border-radius: 6px; /* Bordas mais suaves */
-  cursor: pointer;
-  transition: background 0.1s ease, transform 0.2s ease;
-  margin-bottom: 4px;
-  margin-left: 4px;
-
-  &:hover {
-    transform: scale(1.02);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-export const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-  font-size: 0.9rem; /* Fonte menor */
-  border-radius: 6px; /* Bordas mais suaves */
-  overflow: hidden;
-
-  thead {
-    background: #f3f4f6;
-  }
-
-  th,
-  td {
-    padding: 8px 10px; /* Reduz espaçamento interno */
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-    color: #374151;
-  }
-
-  th {
-    font-weight: bold;
-    font-size: 0.9rem; /* Reduz tamanho da fonte no cabeçalho */
-  }
-
-  td {
-    font-size: 0.85rem; /* Fonte menor nas células */
-  }
-
-  tbody tr:hover {
-    background: #f9fafb; /* Fundo mais claro no hover */
-  }
-
-  img {
-    width: 40px; /* Reduz tamanho da imagem */
-    height: 40px; /* Reduz tamanho da imagem */
-    object-fit: cover;
-    border-radius: 4px;
-  }
-`;
-
-export const TableHeader = styled.th`
-  background: #f5f5f5;
-  color: #333333;
-  padding: 10px;
-  font-size: 0.9rem; /* Fonte menor */
-  font-weight: bold;
-  text-align: left;
-  border-bottom: 2px solid #dddddd;
-`;
-
-export const TableRow = styled.tr`
-  &:nth-child(even) {
-    background: #fafafa;
-  }
-
-  &:nth-child(odd) {
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
     background: #ffffff;
   }
+`;
 
-  &:hover {
-    background: #f0f0f0;
-    cursor: pointer;
-    transition: background 0.2s ease;
+export const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 48%; /* Para alinhar em duas colunas */
+  margin-bottom: 15px;
+
+  label {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #475569;
+    font-weight: 500;
+  }
+
+  input {
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 3px 6px rgba(37, 99, 235, 0.2);
+    }
   }
 `;
 
-export const TableCell = styled.td`
-  padding: 8px 10px; /* Reduz espaçamento interno */
-  border-bottom: 1px solid #eeeeee;
-  color: #666666;
-  font-size: 0.85rem; /* Fonte menor */
-  text-align: left;
 
-  &:last-child {
-    text-align: right;
+export const ModalContent = styled.div`
+  background: white;
+  max-width: 800px; /* Tamanho máximo do modal */
+  width: 90%; /* Ocupa 90% da largura da tela */
+  margin: 0 auto;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+
+  h2 {
+    color: #1e293b;
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+`;
+
+export const ModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+`;
+
+export const ModalOverlay = styled.div`
+  position: fixed; /* Fixa o overlay cobrindo toda a tela */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8); /* Fundo escuro com opacidade */
+  display: flex; /* Ativa o flexbox */
+  justify-content: center; /* Centraliza horizontalmente */
+  align-items: center; /* Centraliza verticalmente */
+  z-index: 9999; /* Garante que o modal esteja acima de outros elementos */
+
+  animation: fadeIn 0.3s ease; /* Animação para entrada suave */
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 `;

@@ -1,20 +1,5 @@
 import styled from "styled-components";
 
-export const Container = styled.div`
-  margin-left: 260px;
-  margin-top: 48px;
-  padding: 20px;
-  min-height: 100vh;
-  color: #333333; /* Texto em cinza escuro */
-
-  h1 {
-    text-align: center;
-    margin-bottom: 16px;
-  }
-`;
-
-
-
 export const FileInputContainer = styled.div`
   display: flex;
   align-items: center;
@@ -64,48 +49,6 @@ export const SuggestionsList = styled.ul`
   }
 `;
 
-export const Notification = styled.div`
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  background: ${({ type }) =>
-    type === "success"
-      ? "linear-gradient(145deg, #4caf50, #81c784)" /* Gradiente verde */
-      : "linear-gradient(145deg, #ff6347, #ff867f)"}; /* Gradiente vermelho */
-  color: #ffffff;
-  padding: 15px 25px;
-  border-radius: 10px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  font-size: 1rem;
-  font-weight: bold;
-  z-index: 1000;
-  display: flex;
-  align-items: center; /* Alinha o ícone e o texto */
-  gap: 10px; /* Espaçamento entre ícone e texto */
-  animation: fadeIn 0.4s ease, fadeOut 0.4s ease 3s;
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-15px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fadeOut {
-    from {
-      opacity: 1;
-    }
-    to {
-      opacity: 0;
-    }
-  }
-`;
-
-
 export const SearchContainer = styled.div`
   display: flex;
   align-items: center; /* Alinha verticalmente ao centro */
@@ -113,43 +56,62 @@ export const SearchContainer = styled.div`
   margin-bottom: 20px;
 `;
 
-export const SearchBar = styled.input`
-  flex: 1; /* Faz o input ocupar o espaço restante */
-  padding: 12px;
-  border: 2px solid #dddddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #333333;
-  background: #f9f9f9;
-  transition: border-color 0.3s ease;
+export const FormLayout = styled.div`
+  display: flex;
+  gap: 30px; /* Espaço entre as colunas */
+  align-items: flex-start; /* Alinha a imagem ao topo */
+  flex-wrap: wrap; /* Permite quebra de linha para telas menores */
+`;
 
-  &:focus {
-    border-color: #1e88e5;
-    outline: none;
+
+export const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column; /* Organiza o label e input verticalmente */
+  gap: 8px; /* Espaçamento entre label e input */
+  flex: 1 1 48%; /* Permite que o campo ocupe 48% da largura, ajustando para duas colunas */
+  min-width: 250px; /* Define um tamanho mínimo para o campo */
+  margin-bottom: 20px; /* Espaçamento inferior para os grupos */
+
+  label {
+    font-size: 0.9rem; /* Tamanho do texto do label */
+    color: #555555; /* Cinza escuro */
+    font-weight: 600; /* Peso para destacar o texto */
+  }
+
+  input,
+  select {
+    padding: 12px; /* Espaçamento interno */
+    font-size: 1rem; /* Tamanho do texto */
+    border: 2px solid #dddddd; /* Borda cinza clara */
+    border-radius: 8px; /* Cantos arredondados */
+    background: #f9f9f9; /* Fundo claro */
+    color: #333333; /* Texto em cinza escuro */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+    &:focus {
+      border-color: #1e88e5; /* Azul no foco */
+      outline: none;
+      box-shadow: 0 0 10px rgba(30, 136, 229, 0.3); /* Realce */
+    }
+  }
+
+  span {
+    font-size: 0.85rem; /* Texto menor para erros */
+    color: red; /* Destaque em vermelho */
+    margin-top: -10px; /* Reduz o espaço superior */
   }
 `;
+export const InputContainer = styled.div`
+  flex: 2; /* Ocupa 2/3 do espaço */
+  display: flex;
+  flex-wrap: wrap; /* Permite quebra de linha */
+  gap: 20px;
 
-export const Label = styled.label`
-  font-size: 1rem;
-  color: #555555;
-  font-weight: bold;
-`;
-
-export const Select = styled.select`
-  padding: 12px;
-  border: 2px solid #dddddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #333333;
-  background: #f9f9f9;
-  transition: border-color 0.3s ease;
-
-  &:focus {
-    border-color: #1e88e5;
-    outline: none;
+  ${FormGroup} {
+    flex: 1 1 48%; /* Cada input ocupa 48% da largura */
+    min-width: 250px;
   }
 `;
-
 
 export const Input = styled.input`
   padding: 12px;
@@ -210,6 +172,48 @@ export const ButtonContainer = styled.div`
   }
 `;
 
+export const Notification = styled.div`
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: ${({ type }) =>
+    type === "success"
+      ? "linear-gradient(145deg, #4caf50, #81c784)" /* Gradiente verde */
+      : "linear-gradient(145deg, #ff6347, #ff867f)"}; /* Gradiente vermelho */
+  color: #ffffff;
+  padding: 15px 25px;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  font-size: 1rem;
+  font-weight: bold;
+  z-index: 1000;
+  display: flex;
+  align-items: center; /* Alinha o ícone e o texto */
+  gap: 10px; /* Espaçamento entre ícone e texto */
+  animation: fadeIn 0.4s ease, fadeOut 0.4s ease 3s;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-15px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+`;
+
+
 export const ActionIcon = styled.div`
   display: inline-flex;
   align-items: center;
@@ -223,29 +227,6 @@ export const ActionIcon = styled.div`
     }
   }
 `;
-
-export const Button = styled.button`
-  background-color: #0056b3;
-  color: #ffffff;
-  font-size: 0.8rem; /* Reduz tamanho da fonte */
-  font-weight: 600;
-  padding: 6px 12px; /* Reduz padding */
-  border: none;
-  border-radius: 6px; /* Bordas mais suaves */
-  cursor: pointer;
-  transition: background 0.1s ease, transform 0.2s ease;
-  margin-bottom: 4px;
-  margin-left: 4px;
-
-  &:hover {
-    transform: scale(1.02);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
 
 export const ModalContainer = styled.div`
   position: fixed;
@@ -361,11 +342,11 @@ export const CloseButton = styled.button`
 
 
 export const ImageContainer = styled.div`
+  flex: 1; /* Ocupa 1/3 do espaço */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 15px;
-  width: 100%;
 
   input[type="file"] {
     border: 2px solid #1e88e5;
@@ -375,8 +356,8 @@ export const ImageContainer = styled.div`
   }
 
   img {
-    width: 140px;
-    height: 140px;
+    width: 250px;
+    height: 250px;
     object-fit: cover;
     border: 2px solid #1e88e5;
     border-radius: 8px;
@@ -384,95 +365,13 @@ export const ImageContainer = styled.div`
 `;
 
 export const ImagePreview = styled.img`
-  width: 120px; /* Tamanho ajustado para visualização */
-  height: 120px;
-  object-fit: cover; /* Imagem ajustada para caber no contêiner */
-  border-radius: 10px;
-  border: 2px solid #1e88e5; /* Azul escuro para borda */
+  width: 140px; /* Tamanho da imagem */
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #1e88e5; /* Azul escuro */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra */
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-
-  &:hover {
-    transform: scale(1.1); /* Leve zoom no hover */
-    box-shadow: 0 4px 12px rgba(30, 136, 229, 0.5); /* Sombra azul */
-  }
 `;
 
 
-export const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-  font-size: 0.9rem; /* Fonte menor */
-  border-radius: 6px; /* Bordas mais suaves */
-  overflow: hidden;
-
-  thead {
-    background: #f3f4f6;
-  }
-
-  th,
-  td {
-    padding: 8px 10px; /* Reduz espaçamento interno */
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-    color: #374151;
-  }
-
-  th {
-    font-weight: bold;
-    font-size: 0.9rem; /* Reduz tamanho da fonte no cabeçalho */
-  }
-
-  td {
-    font-size: 0.85rem; /* Fonte menor nas células */
-  }
-
-  tbody tr:hover {
-    background: #f9fafb; /* Fundo mais claro no hover */
-  }
-
-  img {
-    width: 40px; /* Reduz tamanho da imagem */
-    height: 40px; /* Reduz tamanho da imagem */
-    object-fit: cover;
-    border-radius: 4px;
-  }
-`;
-
-export const TableHeader = styled.th`
-  background: #f5f5f5;
-  color: #333333;
-  padding: 10px;
-  font-size: 0.9rem; /* Fonte menor */
-  font-weight: bold;
-  text-align: left;
-  border-bottom: 2px solid #dddddd;
-`;
-
-export const TableRow = styled.tr`
-  &:nth-child(even) {
-    background: #fafafa;
-  }
-
-  &:nth-child(odd) {
-    background: #ffffff;
-  }
-
-  &:hover {
-    background: #f0f0f0;
-    cursor: pointer;
-    transition: background 0.2s ease;
-  }
-`;
-
-export const TableCell = styled.td`
-  padding: 8px 10px; /* Reduz espaçamento interno */
-  border-bottom: 1px solid #eeeeee;
-  color: #666666;
-  font-size: 0.85rem; /* Fonte menor */
-  text-align: left;
-
-  &:last-child {
-    text-align: right;
-  }
-`;

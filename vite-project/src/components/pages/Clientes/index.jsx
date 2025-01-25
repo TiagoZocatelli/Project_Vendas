@@ -1,15 +1,19 @@
 import { useState } from "react";
 import {
+  AddForm,
+  Input,
+} from "./styles";
+
+import {
   Container,
   Table,
   TableHeader,
   TableRow,
   TableCell,
-  AddForm,
-  Input,
   Button,
   SearchBar,
-} from "./styles";
+  Label
+} from '../../../styles/utils'
 
 const Clientes = () => {
   const [clients, setClients] = useState([]);

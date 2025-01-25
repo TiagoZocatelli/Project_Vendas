@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import {
+    AddProductForm,
+    Input,
+    ModalContainer,
+    ModalContent,
+    TableContainer,
+} from "./styles";
 import {
     Container,
     Button,
@@ -7,17 +13,16 @@ import {
     TableHeader,
     TableRow,
     TableCell,
-    TableContainer,
-    AddProductForm,
-    Input,
-    ModalContainer,
-    ModalContent,
-} from "./styles";
+    ActionIcon,
+} from '../../../styles/utils'
+import { Notification } from "../../../styles/utils";
 
 import api from '../../../api'
+import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
 
 const Filiais = () => {
     const [filiais, setFiliais] = useState([]);
+    const [message, setMessage] = useState(null); // Objeto { text, type }
     const [formData, setFormData] = useState({
         nome: "",
         codigo: "",
@@ -30,24 +35,23 @@ const Filiais = () => {
     const [editId, setEditId] = useState(null);
     const [showModal, setShowModal] = useState(false);
 
-    // Carrega as filiais ao carregar a página
     useEffect(() => {
         fetchFiliais();
     }, []);
 
     const fetchFiliais = async () => {
         try {
-            const response = await api.get("/filiais"); // Usa a baseURL configurada
+            const response = await api.get("/filiais");
             setFiliais(response.data || []);
         } catch (error) {
-            console.error("Erro ao buscar filiais:", error);
-            setFiliais([]);
+            showMessage("Erro ao buscar filiais.", "error");
         }
     };
 
-
-
-
+    const showMessage = (text, type = "success") => {
+        setMessage({ text, type });
+        setTimeout(() => setMessage(null), 3000); // Remove a mensagem após 3 segundos
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -59,8 +63,10 @@ const Filiais = () => {
         try {
             if (isEditing) {
                 await api.put(`/filiais/${editId}`, formData);
+                showMessage("Filial atualizada com sucesso!", "success");
             } else {
-                await api.post("/filiais-cadastrar", formData); // Caminho correto
+                await api.post("/filiais-cadastrar", formData);
+                showMessage("Filial cadastrada com sucesso!", "success");
             }
             fetchFiliais();
             setFormData({
@@ -73,21 +79,19 @@ const Filiais = () => {
             });
             setShowModal(false);
         } catch (error) {
-            console.error("Erro ao salvar filial:", error);
+            showMessage("Erro ao salvar filial.", "error");
         }
     };
-
 
     const handleDelete = async (id) => {
         try {
-            await api.delete(`/filiais/${id}`); // Usa a instância configurada com baseURL
-            fetchFiliais(); // Atualiza a lista após a exclusão
+            await api.delete(`/filiais/${id}`);
+            showMessage("Filial excluída com sucesso!", "success");
+            fetchFiliais();
         } catch (error) {
-            console.error("Erro ao excluir filial:", error);
+            showMessage("Erro ao excluir filial.", "error");
         }
     };
-    
-
 
     const handleEdit = (filial) => {
         setIsEditing(true);
@@ -98,9 +102,22 @@ const Filiais = () => {
 
     return (
         <Container>
+            {/* Notificação */}
+            {message && (
+                <Notification type={message.type}>
+                    {message.type === "success" ? (
+                        <FaCheckCircle size={20} />
+                    ) : (
+                        <FaExclamationCircle size={20} />
+                    )}
+                    {message.text}
+                </Notification>
+            )}
+
             <h1>Gestão de Filiais</h1>
             <Button onClick={() => setShowModal(true)}>Adicionar Filial</Button>
 
+            {/* Tabela de Filiais */}
             <TableContainer>
                 <Table>
                     <thead>
@@ -115,7 +132,6 @@ const Filiais = () => {
                             <TableHeader>Ações</TableHeader>
                         </tr>
                     </thead>
-
                     <tbody>
                         {Array.isArray(filiais) && filiais.length > 0 ? (
                             filiais.map((filial) => (
@@ -128,8 +144,12 @@ const Filiais = () => {
                                     <TableCell>{filial.cidade}</TableCell>
                                     <TableCell>{filial.estado}</TableCell>
                                     <TableCell>
-                                        <Button onClick={() => handleEdit(filial)}>Editar</Button>
-                                        <Button onClick={() => handleDelete(filial.id)}>Excluir</Button>
+                                        <ActionIcon onClick={() => handleEdit(filial)}>
+                                            <FaEdit size={16} style={{ color: "#FF9800" }} />
+                                        </ActionIcon>
+                                        <ActionIcon onClick={() => handleDelete(filial.id)}>
+                                            <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                                        </ActionIcon>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -139,10 +159,10 @@ const Filiais = () => {
                             </TableRow>
                         )}
                     </tbody>
-
                 </Table>
             </TableContainer>
 
+            {/* Modal */}
             {showModal && (
                 <ModalContainer>
                     <ModalContent>

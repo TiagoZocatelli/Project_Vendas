@@ -1,29 +1,38 @@
 import { useState, useEffect } from "react";
 import {
-  Container,
   Table,
   TableHeader,
   TableRow,
   TableCell,
-  AddProductForm,
+  Container,
   Input,
-  Button,
   SearchBar,
+  Label,
+  Select,
+  Button,
   Notification,
+  ConfirmModalContainer,
+  ConfirmCancelButton,
+  ConfirmButton,
+  ConfirmModalContent,
+  ConfirmButtonContainer
+} from '../../../styles/utils'
+import {
+  AddProductForm,
   ImageContainer,
-  ImagePreview,
   RemoveImageButton,
   ModalContainer,
   ModalContent,
   CloseButton,
-  Textarea,
   ModalButton,
   ButtonContainer,
   SearchContainer,
-  Select,
-  Label,
   ActionIcon,
-  DivCategory
+  DivCategory,
+  InputContainer,
+  FormLayout,
+  ImagePreview,
+  FormGroup
 } from "./styles"; // Importe o estilo Notification
 import api from "../../../api";
 import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
@@ -31,7 +40,6 @@ import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons
 const Produtos = () => {
   const [products, setProducts] = useState([]);
   const [errors, setErrors] = useState({});
-
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -39,6 +47,8 @@ const Produtos = () => {
   const [selectedFilial, setSelectedFilial] = useState("");
   const [message, setMessage] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null); // Categoria sendo editada
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   const [newProduct, setNewProduct] = useState({
     nome: "",
@@ -53,6 +63,11 @@ const Produtos = () => {
   const itemsPerPage = 10;
   const [selectedImage, setSelectedImage] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false); // Estado para abrir/fechar o modal
+
+  const confirmDeleteProduct = (product) => {
+    setProductToDelete(product);
+    setIsConfirmDeleteOpen(true);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -73,32 +88,32 @@ const Produtos = () => {
 
   const validateProduct = () => {
     const errors = {};
-  
+
     // Validação do nome
     if (!newProduct.nome.trim()) {
       errors.nome = "O nome do produto é obrigatório.";
     }
-  
+
     // Validação do código de barras
     if (!newProduct.codigo_barras || !/^\d+$/.test(newProduct.codigo_barras)) {
       errors.codigo_barras = "O código de barras deve conter apenas números.";
     }
-  
+
     // Validação do preço de custo
     if (!newProduct.preco_custo || isNaN(newProduct.preco_custo) || parseFloat(newProduct.preco_custo) <= 0) {
       errors.preco_custo = "O preço de custo deve ser um número válido maior que zero.";
     }
-  
+
     // Validação do preço de venda
     if (!newProduct.preco_venda || isNaN(newProduct.preco_venda) || parseFloat(newProduct.preco_venda) <= 0) {
       errors.preco_venda = "O preço de venda deve ser um número válido maior que zero.";
     } else if (parseFloat(newProduct.preco_venda) <= parseFloat(newProduct.preco_custo)) {
       errors.preco_venda = "O preço de venda deve ser maior que o preço de custo.";
     }
-  
+
     return errors;
   };
-  
+
 
   const startEdit = (category) => {
     setEditingCategory({ ...category }); // Configura a categoria para edição
@@ -145,6 +160,7 @@ const Produtos = () => {
   const addCategory = async () => {
     if (!newCategory.trim()) {
       showMessage("O nome da categoria não pode estar vazio.", "error");
+      setIsModalOpen(false)
       return;
     }
 
@@ -159,6 +175,8 @@ const Produtos = () => {
     }
   };
 
+
+  // Fecha o modal quando uma mensagem de sucesso é exibid
 
 
   const uploadProductImage = async (productId) => {
@@ -218,13 +236,8 @@ const Produtos = () => {
     }
   }, [selectedFilial]);
 
-  useEffect(() => {
-    if (message && message.type != "success") {
-      setIsModalOpen(false); // Fecha o modal ao exibir uma mensagem de sucesso
-    }
-  }, [message]);
 
-  
+
   const fetchProducts = async () => {
     try {
       const response = await api.get("/produtos");
@@ -264,30 +277,28 @@ const Produtos = () => {
 
 
   const addOrUpdateProduct = async () => {
-    console.log("Método addOrUpdateProduct foi chamado.");
+    console.log("Dados do produto antes de salvar:", newProduct);
   
-    // Valida os campos
     const validationErrors = validateProduct();
     if (Object.keys(validationErrors).length > 0) {
-      // Exibe todas as mensagens de erro
       Object.values(validationErrors).forEach((error) => showMessage(error, "error"));
-      return; // Interrompe o processo
+      return;
     }
   
     try {
       let productId = null;
-  
       if (editingIndex !== null) {
         productId = products[editingIndex].id;
         console.log("Atualizando produto com ID:", productId);
         await api.put(`/produtos/${productId}`, {
-          ...newProduct, // Inclui categoria_id no payload
+          ...newProduct,
           margem: calculateMargin(),
         });
         showMessage("Produto atualizado com sucesso!");
       } else {
+        console.log("Cadastrando novo produto...");
         const response = await api.post("/produtos", {
-          ...newProduct, // Inclui categoria_id no payload
+          ...newProduct,
           margem: calculateMargin(),
         });
         productId = response.data.id;
@@ -296,33 +307,31 @@ const Produtos = () => {
       }
   
       if (selectedImage) {
-        console.log("Chamando uploadProductImage...");
+        console.log("Fazendo upload da imagem...");
         await uploadProductImage(productId);
-      } else {
-        console.log("Nenhuma imagem foi selecionada.");
       }
   
       fetchProducts();
       resetForm();
       setIsModalOpen(false);
     } catch (error) {
-      console.error("Erro no método addOrUpdateProduct:", error);
-      showMessage("Erro ao salvar produto", "error");
+      console.error("Erro ao salvar produto:", error.response || error.message);
+      showMessage("Erro ao salvar produto.", "error");
     }
   };
   
 
-
-
-
-  const removeProduct = async (id) => {
+  const handleDeleteConfirmed = async () => {
     try {
-      await api.delete(`/produtos/${id}`);
-      fetchProducts();
-      showMessage("Produto removido com sucesso!");
+      await api.delete(`/produtos/${productToDelete.id}`);
+      fetchProducts(); // Atualiza a lista de produtos
+      showMessage("Produto removido com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao remover produto:", error);
       showMessage("Erro ao remover produto", "error");
+    } finally {
+      setIsConfirmDeleteOpen(false);
+      setProductToDelete(null);
     }
   };
 
@@ -358,6 +367,17 @@ const Produtos = () => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
   };
+
+  useEffect(() => {
+    if (message && message.type === "error") {
+      setIsModalOpen(false);
+      setIsCategoryModalOpen(false);
+      resetForm() // Fecha o modal ao exibir uma mensagem de sucesso
+    }
+  }, [message]);
+
+
+
 
   const calculateMargin = () => {
     if (newProduct.preco_custo && newProduct.preco_venda) {
@@ -404,9 +424,23 @@ const Produtos = () => {
           ) : (
             <FaExclamationCircle size={20} />
           )}
-          {message.text}        
+          {message.text}
         </Notification>
       )}
+
+      {isConfirmDeleteOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar Exclusão</h2>
+            <p>Tem certeza de que deseja excluir o produto <br /> "{productToDelete?.nome}" ?</p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={handleDeleteConfirmed}>Sim, Excluir</ConfirmButton>
+              <ConfirmCancelButton onClick={() => setIsConfirmDeleteOpen(false)}>Cancelar</ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
+
 
       <SearchContainer>
         <Label htmlFor="filialSelect">Filial:</Label>
@@ -510,86 +544,106 @@ const Produtos = () => {
       )}
 
 
-
-      {/* Modal de Cadastro de Produto */}
       {isModalOpen && (
         <ModalContainer>
           <ModalContent>
             <CloseButton onClick={() => limpaCampos()}>&#10005;</CloseButton>
+            <h2>{editingIndex !== null ? "Editar Produto" : "Adicionar Novo Produto"}</h2>
             <AddProductForm>
-              <h2>{editingIndex !== null ? "Editar Produto" : "Adicionar Novo Produto"}</h2>
-              <Input
-                type="text"
-                name="nome"
-                placeholder="Nome do Produto"
-                value={newProduct.nome}
-                onChange={handleInputChange}
-              />
-              {errors.nome && <span style={{ color: "red" }}>{errors.nome}</span>}
-              <Input
-                type="number"
-                name="codigo_barras"
-                placeholder="Código de Barras"
-                value={newProduct.codigo_barras}
-                onChange={handleInputChange}
-              />
-              {errors.codigo_barras && <span style={{ color: "red" }}>{errors.codigo_barras}</span>}
+              {/* Contêiner para organizar os inputs e a imagem */}
+              <FormLayout>
+                {/* Inputs */}
+                <InputContainer>
+                  <FormGroup>
+                    <label>Nome:</label>
+                    <input
+                      type="text"
+                      name="nome"
+                      placeholder="Nome do Produto"
+                      value={newProduct.nome}
+                      onChange={handleInputChange}
+                    />
+                    {errors.nome && <span style={{ color: "red" }}>{errors.nome}</span>}
+                  </FormGroup>
+                  <FormGroup>
+                    <label>Código de Barras:</label>
+                    <input
+                      type="number"
+                      name="codigo_barras"
+                      placeholder="Código de Barras"
+                      value={newProduct.codigo_barras}
+                      onChange={handleInputChange}
+                    />
+                    {errors.codigo_barras && (
+                      <span style={{ color: "red" }}>{errors.codigo_barras}</span>
+                    )}
+                  </FormGroup>
+                  <FormGroup>
+                    <label>Preço de Custo:</label>
+                    <input
+                      type="number"
+                      name="preco_custo"
+                      placeholder="Preço de Custo"
+                      value={newProduct.preco_custo}
+                      onChange={handleInputChange}
+                    />
+                    {errors.preco_custo && (
+                      <span style={{ color: "red" }}>{errors.preco_custo}</span>
+                    )}
+                  </FormGroup>
+                  <FormGroup>
+                    <label>Preço de Venda:</label>
+                    <input
+                      type="number"
+                      name="preco_venda"
+                      placeholder="Preço de Venda"
+                      value={newProduct.preco_venda}
+                      onChange={handleInputChange}
+                    />
+                    {errors.preco_venda && (
+                      <span style={{ color: "red" }}>{errors.preco_venda}</span>
+                    )}
+                  </FormGroup>
+                  <FormGroup>
+                    <label>Categoria:</label>
+                    <Select
+                      id="categoria"
+                      name="categoria_id"
+                      value={newProduct.categoria_id || ""}
+                      onChange={(e) => handleInputChange(e)}
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.nome}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+                </InputContainer>
 
-              <Input
-                type="number"
-                name="preco_custo"
-                placeholder="Preço de Custo"
-                value={newProduct.preco_custo}
-                onChange={handleInputChange}
-              />
-              {errors.preco_custo && <span style={{ color: "red" }}>{errors.preco_custo}</span>}
-
-              <Input
-                type="number"
-                name="preco_venda"
-                placeholder="Preço de Venda"
-                value={newProduct.preco_venda}
-                onChange={handleInputChange}
-              />
-              {errors.preco_venda && <span style={{ color: "red" }}>{errors.preco_venda}</span>}
-
-              <Select
-                id="categoria"
-                name="categoria_id"
-                value={newProduct.categoria_id || ""}
-                onChange={(e) => handleInputChange(e)} // Atualiza o estado
-              >
-                <option value="">Selecione uma categoria</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.nome}
-                  </option>
-                ))}
-              </Select>
-
-
-              <ImageContainer>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-                {selectedImage && <span>{selectedImage.name}</span>}
-                {newProduct.imagem && !selectedImage && (
-                  <div>
-                    <img
+                {/* Imagem */}
+                <ImageContainer>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                  {selectedImage && <span>{selectedImage.name}</span>}
+                  {newProduct.imagem && !selectedImage && (
+                    <ImagePreview
                       src={`data:image/png;base64,${newProduct.imagem}`}
                       alt="Imagem do Produto"
                     />
-
-                  </div>
-                )}
-              </ImageContainer>
+                  )}
+                </ImageContainer>
+              </FormLayout>
+              {/* Botões */}
               <ButtonContainer>
                 <ModalButton
                   onClick={(event) => {
                     event.preventDefault();
-                    addOrUpdateProduct();
+                    addOrUpdateProduct(newProduct.id);
                   }}
                 >
                   {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
@@ -598,11 +652,11 @@ const Produtos = () => {
                   Remover Imagem
                 </RemoveImageButton>
               </ButtonContainer>
-
             </AddProductForm>
           </ModalContent>
         </ModalContainer>
       )}
+
 
 
       {/* Tabela de Produtos */}
@@ -649,7 +703,7 @@ const Produtos = () => {
                 <ActionIcon onClick={() => editProduct(index)}>
                   <FaEdit size={16} style={{ color: "#FF9800" }} />
                 </ActionIcon>
-                <ActionIcon onClick={() => removeProduct(product.id)}>
+                <ActionIcon onClick={() => confirmDeleteProduct(product)}>
                   <FaTrash size={16} style={{ color: "#f43f5e" }} />
                 </ActionIcon>
               </TableCell>

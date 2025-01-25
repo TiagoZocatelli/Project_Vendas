@@ -613,7 +613,7 @@ def excluir_produto(id):
 
 @app.route("/entradas", methods=["GET"])
 def obter_entradas():
-    """Retorna todas as entradas e seus respectivos itens, incluindo o nome do fornecedor e do produto."""
+    """Retorna todas as entradas e seus respectivos itens, incluindo o nome do fornecedor, produto e filial."""
     conn = get_db_connection()
     
     if not conn:
@@ -621,7 +621,7 @@ def obter_entradas():
     
     try:
         with conn.cursor() as cur:
-            # Busca todas as entradas junto com o nome do fornecedor
+            # Busca todas as entradas junto com o nome do fornecedor e filial
             cur.execute("""
                 SELECT 
                     e.id AS entrada_id,
@@ -631,9 +631,12 @@ def obter_entradas():
                     e.total,
                     e.observacoes,
                     e.criado_em,
-                    e.atualizado_em
+                    e.atualizado_em,
+                    e.filial_id,
+                    fi.nome AS filial_nome
                 FROM entradas e
                 JOIN fornecedores f ON e.fornecedor_id = f.id
+                JOIN filiais fi ON e.filial_id = fi.id
             """)
             entradas = cur.fetchall()
 
@@ -645,12 +648,12 @@ def obter_entradas():
                         i.id AS item_id,
                         i.entrada_id,
                         i.produto_id,
-                        p.nome AS produto_nome,  -- Nome do produto
+                        p.nome AS produto_nome,
                         i.quantidade,
                         i.preco_custo,
                         i.subtotal
                     FROM itens_entrada i
-                    JOIN produtos p ON i.produto_id = p.id  -- Faz o JOIN com a tabela de produtos
+                    JOIN produtos p ON i.produto_id = p.id
                     WHERE i.entrada_id = %s
                 """, (entrada[0],))  # entrada_id
                 itens = cur.fetchall()
@@ -658,24 +661,26 @@ def obter_entradas():
                 # Construindo a resposta detalhada
                 entradas_com_itens.append({
                     "entrada": {
-                        "id": entrada[0],  # ID da entrada
-                        "fornecedor_id": entrada[1],  # ID do fornecedor
-                        "fornecedor_nome": entrada[2],  # Nome do fornecedor
-                        "data_entrada": entrada[3],  # Data de entrada
-                        "total": entrada[4],  # Total da entrada
-                        "observacoes": entrada[5],  # Observações associadas à entrada
-                        "criado_em": entrada[6],  # Data de criação do registro
-                        "atualizado_em": entrada[7],  # Data de última atualização
+                        "id": entrada[0],
+                        "fornecedor_id": entrada[1],
+                        "fornecedor_nome": entrada[2],
+                        "data_entrada": entrada[3],
+                        "total": entrada[4],
+                        "observacoes": entrada[5],
+                        "criado_em": entrada[6],
+                        "atualizado_em": entrada[7],
+                        "filial_id": entrada[8],
+                        "filial_nome": entrada[9],
                     },
                     "itens": [
                         {
-                            "id": item[0],  # ID do item
-                            "entrada_id": item[1],  # ID da entrada à qual o item pertence
-                            "produto_id": item[2],  # ID do produto relacionado ao item
-                            "produto_nome": item[3],  # Nome do produto
-                            "quantidade": item[4],  # Quantidade do produto no item
-                            "preco_custo": item[5],  # Preço de custo do produto
-                            "subtotal": item[6],  # Subtotal do item (quantidade * preço de custo)
+                            "id": item[0],
+                            "entrada_id": item[1],
+                            "produto_id": item[2],
+                            "produto_nome": item[3],
+                            "quantidade": item[4],
+                            "preco_custo": item[5],
+                            "subtotal": item[6],
                         }
                         for item in itens
                     ]
@@ -688,8 +693,6 @@ def obter_entradas():
     
     finally:
         conn.close()
-
-        
 @app.route("/entradas-notas", methods=["POST"])
 def criar_entrada():
     """Cria uma nova entrada e adiciona os itens relacionados."""
@@ -701,30 +704,32 @@ def criar_entrada():
     
     try:
         with conn.cursor() as cur:
-            # Adicionar a entrada na tabela 'entradas' com fornecedor_id
+            # Adicionar a entrada na tabela 'entradas' com fornecedor_id e filial_id
             cur.execute("""
-                INSERT INTO entradas (fornecedor_id, total, observacoes)
-                VALUES (%s, %s, %s) RETURNING id
+                INSERT INTO entradas (fornecedor_id, total, observacoes, filial_id)
+                VALUES (%s, %s, %s, %s) RETURNING id
             """, (
-                data["fornecedor_id"],  # fornecedor_id
-                data["total"],  # total da entrada
-                data["observacoes"]  # observações
+                data["fornecedor_id"],
+                data["total"],
+                data["observacoes"],
+                data["filial_id"]  # Incluindo filial_id
             ))
             
             # Pega o id da entrada recém-criada
             entrada_id = cur.fetchone()[0]
             
             # Agora adiciona os itens dessa entrada
-            for item in data["itens"]:  # "itens" é uma lista de itens no corpo da requisição
+            for item in data["itens"]:
                 cur.execute("""
-                    INSERT INTO itens_entrada (entrada_id, produto_id, quantidade, preco_custo, fornecedor_id)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO itens_entrada (entrada_id, produto_id, quantidade, preco_custo, fornecedor_id, filial_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     entrada_id,
                     item["produto_id"],
                     item["quantidade"],
                     item["preco_custo"],
-                    data["fornecedor_id"]  # Adicionando o fornecedor_id nos itens
+                    data["fornecedor_id"],
+                    data["filial_id"]  # Incluindo filial_id nos itens
                 ))
                 
                 # Atualiza o estoque do produto na tabela estoque_filial
@@ -734,9 +739,9 @@ def criar_entrada():
                     ON CONFLICT (filial_id, produto_id)
                     DO UPDATE SET quantidade = estoque_filial.quantidade + EXCLUDED.quantidade
                 """, (
-                    data["filial_id"],  # ID da filial onde o estoque será atualizado
-                    item["produto_id"],  # ID do produto
-                    item["quantidade"]  # Quantidade a ser adicionada ao estoque
+                    data["filial_id"],
+                    item["produto_id"],
+                    item["quantidade"]
                 ))
 
             # Commit para salvar tudo no banco
@@ -751,43 +756,6 @@ def criar_entrada():
     finally:
         conn.close()
 
-@app.route("/itens_entrada/<int:id>", methods=["DELETE"])
-def excluir_item_entrada(id):
-    """Exclui um item de entrada e atualiza o estoque do produto."""
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Erro ao conectar ao banco."}), 500
-    try:
-        with conn.cursor() as cur:
-            # Buscar a quantidade e o produto associado ao item antes de excluir
-            cur.execute("SELECT produto_id, quantidade FROM itens_entrada WHERE id = %s", (id,))
-            item = cur.fetchone()
-            if not item:
-                return jsonify({"error": "Item não encontrado."}), 404
-
-            produto_id, quantidade = item
-
-            # Excluir o item da tabela itens_entrada
-            cur.execute("DELETE FROM itens_entrada WHERE id = %s", (id,))
-
-            # Atualizar o estoque do produto
-            cur.execute("""
-                UPDATE produtos
-                SET estoque = estoque - %s
-                WHERE id = %s
-            """, (
-                quantidade,
-                produto_id
-            ))
-            conn.commit()
-        return jsonify({"message": "Item excluído e estoque atualizado com sucesso."})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-
 @app.route("/entradas/<int:id>/cancelar", methods=["DELETE"])
 def cancelar_entrada(id):
     """Cancela uma entrada (exclui todos os itens e ajusta o estoque)."""
@@ -796,35 +764,48 @@ def cancelar_entrada(id):
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
     try:
         with conn.cursor() as cur:
+            print(f"Tentando cancelar entrada com ID: {id}")
             # Buscar todos os itens associados à entrada
-            cur.execute("SELECT produto_id, quantidade FROM itens_entrada WHERE entrada_id = %s", (id,))
+            cur.execute("""
+                SELECT produto_id, quantidade, filial_id 
+                FROM itens_entrada 
+                WHERE entrada_id = %s
+            """, (id,))
             itens = cur.fetchall()
+            print(f"Itens associados à entrada: {itens}")
+
             if not itens:
                 return jsonify({"error": "Nenhum item encontrado para esta entrada."}), 404
 
             # Ajustar o estoque dos produtos
-            for produto_id, quantidade in itens:
+            for produto_id, quantidade, filial_id in itens:
+                print(f"Ajustando estoque para Produto ID: {produto_id}, Filial ID: {filial_id}")
                 cur.execute("""
-                    UPDATE produtos
-                    SET estoque = estoque - %s
-                    WHERE id = %s
-                """, (
-                    quantidade,
-                    produto_id
-                ))
+                    UPDATE estoque_filial
+                    SET quantidade = quantidade - %s
+                    WHERE produto_id = %s AND filial_id = %s
+                """, (quantidade, produto_id, filial_id))
+                print(f"Rows afetadas: {cur.rowcount}")
+                if cur.rowcount == 0:
+                    print(f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}")
+                    return jsonify({"error": f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}"}), 400
 
             # Excluir todos os itens associados à entrada
             cur.execute("DELETE FROM itens_entrada WHERE entrada_id = %s", (id,))
+            print(f"Itens excluídos para a entrada {id}")
 
             # Excluir a entrada
             cur.execute("DELETE FROM entradas WHERE id = %s", (id,))
+            print(f"Entrada {id} excluída com sucesso")
             conn.commit()
-        return jsonify({"message": "Entrada cancelada e estoque ajustado com sucesso."})
+        return jsonify({"message": "Entrada cancelada e estoque ajustado com sucesso."}), 200
     except Exception as e:
         conn.rollback()
+        print(f"Erro ao cancelar entrada: {str(e)}")
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
 
 # =================== Fornecedores ===================
 
