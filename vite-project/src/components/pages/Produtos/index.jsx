@@ -15,8 +15,8 @@ import {
   ConfirmCancelButton,
   ConfirmButton,
   ConfirmModalContent,
-  ConfirmButtonContainer
-} from '../../../styles/utils'
+  ConfirmButtonContainer,
+} from "../../../styles/utils";
 import {
   AddProductForm,
   ImageContainer,
@@ -32,13 +32,21 @@ import {
   InputContainer,
   FormLayout,
   ImagePreview,
-  FormGroup
+  FormGroup,
 } from "./styles"; // Importe o estilo Notification
 import api from "../../../api";
-import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaEdit,
+  FaExclamationCircle,
+  FaTrash,
+} from "react-icons/fa";
 
 const Produtos = () => {
   const [products, setProducts] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [newClass, setNewClass] = useState("");
+  const [classToDelete, setClassToDelete] = useState(null);
   const [errors, setErrors] = useState({});
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
@@ -47,7 +55,11 @@ const Produtos = () => {
   const [selectedFilial, setSelectedFilial] = useState("");
   const [message, setMessage] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null); // Categoria sendo editada
-  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isConfirmDeleteClassOpen, setIsConfirmDeleteClassOpen] =
+    useState(false); // Modal para classes
+  const [isConfirmDeleteProductOpen, setIsConfirmDeleteProductOpen] =
+    useState(false); // Modal para produtos
+
   const [productToDelete, setProductToDelete] = useState(null);
 
   const [newProduct, setNewProduct] = useState({
@@ -60,13 +72,89 @@ const Produtos = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingClass, setEditingClass] = useState(null);
   const itemsPerPage = 10;
   const [selectedImage, setSelectedImage] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Estado para abrir/fechar o modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalClasesOpen, setIsModalClasesOpen] = useState(false);
+  // Estado para abrir/fechar o modal
 
-  const confirmDeleteProduct = (product) => {
+  const openConfirmDeleteClassModal = (classe) => {
+    setClassToDelete(classe);
+    setIsConfirmDeleteClassOpen(true);
+  };
+
+  const closeConfirmDeleteClassModal = () => {
+    setIsConfirmDeleteClassOpen(false);
+    setClassToDelete(null);
+  };
+
+  const openConfirmDeleteProductModal = (product) => {
     setProductToDelete(product);
-    setIsConfirmDeleteOpen(true);
+    setIsConfirmDeleteProductOpen(true);
+  };
+
+  const closeConfirmDeleteProductModal = () => {
+    setIsConfirmDeleteProductOpen(false);
+    setProductToDelete(null);
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const response = await api.get("/classes");
+      setClasses(response.data || []);
+    } catch (error) {
+      console.error("Erro ao buscar classes:", error);
+      showMessage("Erro ao buscar classes.", "error");
+    }
+  };
+
+  const addClass = async () => {
+    if (!newClass.trim()) {
+      showMessage("O nome da classe não pode estar vazio.", "error");
+      return;
+    }
+
+    try {
+      await api.post("/classes", { nome: newClass });
+      showMessage("Classe adicionada com sucesso.");
+      setNewClass("");
+      fetchClasses();
+      setIsModalOpen(false); // Fecha o modal após adicionar
+    } catch (error) {
+      console.error("Erro ao adicionar classe:", error);
+      showMessage("Erro ao adicionar classe.", "error");
+    }
+  };
+
+  const editClass = (classe) => {
+    setEditingClass({ ...classe });
+    setIsModalClasesOpen(true);
+  };
+
+  const saveClass = async (id) => {
+    try {
+      await api.put(`/classes/${id}`, { nome: editingClass.nome });
+      showMessage("Classe atualizada com sucesso.");
+      fetchClasses();
+      setEditingClass(null);
+      setIsModalOpen(false); // Fecha o modal após salvar
+    } catch (error) {
+      console.error("Erro ao atualizar classe:", error);
+      showMessage("Erro ao atualizar classe.", "error");
+    }
+  };
+
+  const removeClass = async () => {
+    try {
+      await api.delete(`/classes/${classToDelete.id}`);
+      showMessage("Classe removida com sucesso.");
+      fetchClasses();
+      closeConfirmDeleteClassModal(false); // Fecha o modal de confirmação
+    } catch (error) {
+      console.error("Erro ao remover classe:", error);
+      showMessage("Erro ao remover classe.", "error");
+    }
   };
 
   const handleImageChange = (e) => {
@@ -75,7 +163,10 @@ const Produtos = () => {
       const validFormats = ["image/png", "image/jpeg", "image/jpg"];
       const maxSize = 2 * 1024 * 1024; // 2 MB
       if (!validFormats.includes(file.type)) {
-        showMessage("Formato de imagem inválido. Apenas PNG e JPG são permitidos.", "error");
+        showMessage(
+          "Formato de imagem inválido. Apenas PNG e JPG são permitidos.",
+          "error"
+        );
         return;
       }
       if (file.size > maxSize) {
@@ -100,20 +191,32 @@ const Produtos = () => {
     }
 
     // Validação do preço de custo
-    if (!newProduct.preco_custo || isNaN(newProduct.preco_custo) || parseFloat(newProduct.preco_custo) <= 0) {
-      errors.preco_custo = "O preço de custo deve ser um número válido maior que zero.";
+    if (
+      !newProduct.preco_custo ||
+      isNaN(newProduct.preco_custo) ||
+      parseFloat(newProduct.preco_custo) < 0
+    ) {
+      errors.preco_custo =
+        "O preço de custo deve ser um número válido maior que zero.";
     }
 
     // Validação do preço de venda
-    if (!newProduct.preco_venda || isNaN(newProduct.preco_venda) || parseFloat(newProduct.preco_venda) <= 0) {
-      errors.preco_venda = "O preço de venda deve ser um número válido maior que zero.";
-    } else if (parseFloat(newProduct.preco_venda) <= parseFloat(newProduct.preco_custo)) {
-      errors.preco_venda = "O preço de venda deve ser maior que o preço de custo.";
+    if (
+      !newProduct.preco_venda ||
+      isNaN(newProduct.preco_venda) ||
+      parseFloat(newProduct.preco_venda) < 0
+    ) {
+      errors.preco_venda =
+        "O preço de venda deve ser um número válido maior que zero.";
+    } else if (
+      parseFloat(newProduct.preco_venda) < parseFloat(newProduct.preco_custo)
+    ) {
+      errors.preco_venda =
+        "O preço de venda deve ser maior que o preço de custo.";
     }
 
     return errors;
   };
-
 
   const startEdit = (category) => {
     setEditingCategory({ ...category }); // Configura a categoria para edição
@@ -146,7 +249,6 @@ const Produtos = () => {
     }
   };
 
-
   const fetchCategories = async () => {
     try {
       const response = await api.get("/categorias");
@@ -160,7 +262,7 @@ const Produtos = () => {
   const addCategory = async () => {
     if (!newCategory.trim()) {
       showMessage("O nome da categoria não pode estar vazio.", "error");
-      setIsModalOpen(false)
+      setIsModalOpen(false);
       return;
     }
 
@@ -175,9 +277,7 @@ const Produtos = () => {
     }
   };
 
-
   // Fecha o modal quando uma mensagem de sucesso é exibid
-
 
   const uploadProductImage = async (productId) => {
     if (!selectedImage) {
@@ -192,9 +292,13 @@ const Produtos = () => {
       console.log("Enviando imagem:", selectedImage.name);
       console.log("ID do produto:", productId);
 
-      const response = await api.put(`/produtos/${productId}/imagem`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.put(
+        `/produtos/${productId}/imagem`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
 
       console.log("Resposta da API (Upload Imagem):", response.data);
       showMessage("Imagem atualizada com sucesso!");
@@ -203,10 +307,6 @@ const Produtos = () => {
       showMessage("Erro ao enviar imagem.", "error");
     }
   };
-
-
-
-
 
   const removeImage = async (productId) => {
     try {
@@ -221,6 +321,7 @@ const Produtos = () => {
 
   useEffect(() => {
     fetchFiliais();
+    fetchClasses();
   }, []);
 
   useEffect(() => {
@@ -232,11 +333,9 @@ const Produtos = () => {
   useEffect(() => {
     if (selectedFilial) {
       fetchProducts();
-      fetchCategories()
+      fetchCategories();
     }
   }, [selectedFilial]);
-
-
 
   const fetchProducts = async () => {
     try {
@@ -247,7 +346,9 @@ const Produtos = () => {
         preco_venda: parseFloat(product.preco_venda),
         margem: parseFloat(product.margem).toFixed(2),
         estoque: selectedFilial
-          ? product.estoques.find((e) => e.filial_id === parseInt(selectedFilial, 10))?.quantidade || "N/A"
+          ? product.estoques.find(
+              (e) => e.filial_id === parseInt(selectedFilial, 10)
+            )?.quantidade || "N/A"
           : "Selecione uma filial",
       }));
       setProducts(fetchedProducts);
@@ -275,16 +376,17 @@ const Produtos = () => {
     setNewProduct({ ...newProduct, [name]: value });
   };
 
-
   const addOrUpdateProduct = async () => {
     console.log("Dados do produto antes de salvar:", newProduct);
-  
+
     const validationErrors = validateProduct();
     if (Object.keys(validationErrors).length > 0) {
-      Object.values(validationErrors).forEach((error) => showMessage(error, "error"));
+      Object.values(validationErrors).forEach((error) =>
+        showMessage(error, "error")
+      );
       return;
     }
-  
+
     try {
       let productId = null;
       if (editingIndex !== null) {
@@ -294,7 +396,7 @@ const Produtos = () => {
           ...newProduct,
           margem: calculateMargin(),
         });
-        showMessage("Produto atualizado com sucesso!");
+        showMessage("Produto atualizado com sucesso!", "success");
       } else {
         console.log("Cadastrando novo produto...");
         const response = await api.post("/produtos", {
@@ -303,23 +405,26 @@ const Produtos = () => {
         });
         productId = response.data.id;
         console.log("Produto criado com ID:", productId);
-        showMessage("Produto adicionado com sucesso!");
+        showMessage("Produto adicionado com sucesso!", "success");
       }
-  
+
       if (selectedImage) {
         console.log("Fazendo upload da imagem...");
         await uploadProductImage(productId);
       }
-  
+
       fetchProducts();
       resetForm();
       setIsModalOpen(false);
     } catch (error) {
-      console.error("Erro ao salvar produto:", error.response || error.message);
-      showMessage("Erro ao salvar produto.", "error");
+      // Captura a mensagem de erro do backend
+      const ErrorProduct =
+        error.response?.data?.error || "Erro ao salvar produto.";
+      console.error("Erro ao salvar produto:", error.response);
+      // Exibe a mensagem de erro na interface
+      showMessage(ErrorProduct, "error");
     }
   };
-  
 
   const handleDeleteConfirmed = async () => {
     try {
@@ -330,7 +435,7 @@ const Produtos = () => {
       console.error("Erro ao remover produto:", error);
       showMessage("Erro ao remover produto", "error");
     } finally {
-      setIsConfirmDeleteOpen(false);
+      closeConfirmDeleteProductModal (false);
       setProductToDelete(null);
     }
   };
@@ -338,7 +443,9 @@ const Produtos = () => {
   const editProduct = (index) => {
     // Localiza o produto na lista filtrada e busca o ID
     const filteredProduct = currentProducts[index]; // Produto da página atual
-    const productIndex = products.findIndex((product) => product.id === filteredProduct.id); // Busca o índice na lista completa
+    const productIndex = products.findIndex(
+      (product) => product.id === filteredProduct.id
+    ); // Busca o índice na lista completa
 
     setEditingIndex(productIndex); // Salva o índice completo
     setNewProduct({
@@ -348,8 +455,6 @@ const Produtos = () => {
     setSelectedImage(null); // Reseta a seleção de imagem
     setIsModalOpen(true); // Abre o modal
   };
-
-
 
   const resetForm = () => {
     setNewProduct({
@@ -372,16 +477,17 @@ const Produtos = () => {
     if (message && message.type === "error") {
       setIsModalOpen(false);
       setIsCategoryModalOpen(false);
-      resetForm() // Fecha o modal ao exibir uma mensagem de sucesso
+      resetForm(); // Fecha o modal ao exibir uma mensagem de sucesso
     }
   }, [message]);
 
-
-
-
   const calculateMargin = () => {
     if (newProduct.preco_custo && newProduct.preco_venda) {
-      const margem = ((parseFloat(newProduct.preco_venda) - parseFloat(newProduct.preco_custo)) / parseFloat(newProduct.preco_custo)) * 100;
+      const margem =
+        ((parseFloat(newProduct.preco_venda) -
+          parseFloat(newProduct.preco_custo)) /
+          parseFloat(newProduct.preco_custo)) *
+        100;
       return margem.toFixed(2);
     }
     return "";
@@ -395,7 +501,10 @@ const Produtos = () => {
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const currentProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   const nextPage = () => {
     if (currentPage < totalPages) {
@@ -410,9 +519,22 @@ const Produtos = () => {
   };
 
   const limpaCampos = () => {
-    setIsModalOpen(false)
-    resetForm()
-  }
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const openModal = () => {
+    setEditingClass(null); // Garantir que não há edição ativa
+    setNewClass(""); // Limpar o campo de nova classe
+    setIsModalClasesOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalClasesOpen(false);
+    setEditingClass(null);
+    setNewClass("");
+  };
+
 
   return (
     <Container>
@@ -428,19 +550,99 @@ const Produtos = () => {
         </Notification>
       )}
 
-      {isConfirmDeleteOpen && (
+      {isConfirmDeleteProductOpen && (
         <ConfirmModalContainer>
           <ConfirmModalContent>
             <h2>Confirmar Exclusão</h2>
-            <p>Tem certeza de que deseja excluir o produto <br /> "{productToDelete?.nome}" ?</p>
+            <p>
+              Tem certeza de que deseja excluir o produto{" "}
+              <strong>{productToDelete?.nome}</strong>?
+            </p>
             <ConfirmButtonContainer>
-              <ConfirmButton onClick={handleDeleteConfirmed}>Sim, Excluir</ConfirmButton>
-              <ConfirmCancelButton onClick={() => setIsConfirmDeleteOpen(false)}>Cancelar</ConfirmCancelButton>
+              <ConfirmButton onClick={handleDeleteConfirmed}>
+                Sim, Excluir
+              </ConfirmButton>
+              <ConfirmCancelButton onClick={closeConfirmDeleteProductModal}>
+                Cancelar
+              </ConfirmCancelButton>
             </ConfirmButtonContainer>
           </ConfirmModalContent>
         </ConfirmModalContainer>
       )}
 
+      {isModalClasesOpen && (
+        <ModalContainer>
+          <ModalContent>
+            <CloseButton onClick={closeModal}>&#10005;</CloseButton>
+            <h2>{editingClass ? "Editar Classe" : "Adicionar Nova Classe"}</h2>
+            <DivCategory>
+              <Input
+                type="text"
+                placeholder="Nome da Classe"
+                value={editingClass ? editingClass.nome : newClass}
+                onChange={(e) =>
+                  editingClass
+                    ? setEditingClass({ ...editingClass, nome: e.target.value })
+                    : setNewClass(e.target.value)
+                }
+              />
+              <Button
+                onClick={() =>
+                  editingClass ? saveClass(editingClass.id) : addClass()
+                }
+              >
+                {editingClass ? "Salvar Alterações" : "Adicionar Classe"}
+              </Button>
+            </DivCategory>
+
+            {/* Tabela de Classes */}
+            <Table>
+              <thead>
+                <TableRow>
+                  <TableHeader>ID</TableHeader>
+                  <TableHeader>Nome</TableHeader>
+                  <TableHeader>Ações</TableHeader>
+                </TableRow>
+              </thead>
+              <tbody>
+                {classes.map((classe) => (
+                  <TableRow key={classe.id}>
+                    <TableCell>{classe.id}</TableCell>
+                    <TableCell>{classe.nome}</TableCell>
+                    <TableCell>
+                      <ActionIcon onClick={() => editClass(classe)}>
+                        <FaEdit size={16} style={{ color: "#FF9800" }} />
+                      </ActionIcon>
+                      <ActionIcon
+                        onClick={() => openConfirmDeleteClassModal(classe)}
+                      >
+                        <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                      </ActionIcon>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </Table>
+          </ModalContent>
+        </ModalContainer>
+      )}
+      {isConfirmDeleteClassOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar Exclusão</h2>
+            <p>
+              Tem certeza de que deseja excluir a classe{" "}
+              <strong>{classToDelete?.nome}</strong>?
+            </p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={removeClass}>Sim, Excluir</ConfirmButton>
+              <ConfirmCancelButton onClick={closeConfirmDeleteClassModal}>
+                Cancelar
+              </ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
 
       <SearchContainer>
         <Label htmlFor="filialSelect">Filial:</Label>
@@ -462,7 +664,10 @@ const Produtos = () => {
           onChange={(e) => setSearch(e.target.value)}
         />
         <Button onClick={() => setIsModalOpen(true)}>Adicionar Produto</Button>
-        <Button onClick={() => setIsCategoryModalOpen(true)}>Gerenciar Categorias</Button>
+        <Button onClick={() => setIsCategoryModalOpen(true)}>
+          Gerenciar Categorias
+        </Button>
+        <Button onClick={openModal}>Adicionar Nova Classe</Button>
       </SearchContainer>
       {/* Modal de Categorias */}
       {isCategoryModalOpen && (
@@ -518,10 +723,16 @@ const Produtos = () => {
                       {editingCategory?.id === category.id ? (
                         <>
                           <ActionIcon onClick={() => saveCategory(category.id)}>
-                            <FaCheckCircle size={16} style={{ color: "green" }} />
+                            <FaCheckCircle
+                              size={16}
+                              style={{ color: "green" }}
+                            />
                           </ActionIcon>
                           <ActionIcon onClick={() => cancelEdit()}>
-                            <FaExclamationCircle size={16} style={{ color: "orange" }} />
+                            <FaExclamationCircle
+                              size={16}
+                              style={{ color: "orange" }}
+                            />
                           </ActionIcon>
                         </>
                       ) : (
@@ -529,7 +740,9 @@ const Produtos = () => {
                           <ActionIcon onClick={() => startEdit(category)}>
                             <FaEdit size={16} style={{ color: "#FF9800" }} />
                           </ActionIcon>
-                          <ActionIcon onClick={() => removeCategory(category.id)}>
+                          <ActionIcon
+                            onClick={() => removeCategory(category.id)}
+                          >
                             <FaTrash size={16} style={{ color: "#f43f5e" }} />
                           </ActionIcon>
                         </>
@@ -543,12 +756,15 @@ const Produtos = () => {
         </ModalContainer>
       )}
 
-
       {isModalOpen && (
         <ModalContainer>
           <ModalContent>
             <CloseButton onClick={() => limpaCampos()}>&#10005;</CloseButton>
-            <h2>{editingIndex !== null ? "Editar Produto" : "Adicionar Novo Produto"}</h2>
+            <h2>
+              {editingIndex !== null
+                ? "Editar Produto"
+                : "Adicionar Novo Produto"}
+            </h2>
             <AddProductForm>
               {/* Contêiner para organizar os inputs e a imagem */}
               <FormLayout>
@@ -563,7 +779,9 @@ const Produtos = () => {
                       value={newProduct.nome}
                       onChange={handleInputChange}
                     />
-                    {errors.nome && <span style={{ color: "red" }}>{errors.nome}</span>}
+                    {errors.nome && (
+                      <span style={{ color: "red" }}>{errors.nome}</span>
+                    )}
                   </FormGroup>
                   <FormGroup>
                     <label>Código de Barras:</label>
@@ -575,7 +793,9 @@ const Produtos = () => {
                       onChange={handleInputChange}
                     />
                     {errors.codigo_barras && (
-                      <span style={{ color: "red" }}>{errors.codigo_barras}</span>
+                      <span style={{ color: "red" }}>
+                        {errors.codigo_barras}
+                      </span>
                     )}
                   </FormGroup>
                   <FormGroup>
@@ -620,6 +840,27 @@ const Produtos = () => {
                       ))}
                     </Select>
                   </FormGroup>
+                  <FormGroup>
+                    <label>Classe:</label>
+                    <Select
+                      id="classe"
+                      name="classe_id"
+                      value={newProduct.classe_id || ""} // Define o valor da classe atual
+                      onChange={(e) =>
+                        setNewProduct({
+                          ...newProduct,
+                          classe_id: e.target.value, // Atualiza o estado com a classe selecionada
+                        })
+                      }
+                    >
+                      <option value="">Selecione uma classe</option>
+                      {classes.map((classe) => (
+                        <option key={classe.id} value={classe.id}>
+                          {classe.nome}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormGroup>
                 </InputContainer>
 
                 {/* Imagem */}
@@ -646,7 +887,9 @@ const Produtos = () => {
                     addOrUpdateProduct(newProduct.id);
                   }}
                 >
-                  {editingIndex !== null ? "Atualizar Produto" : "Adicionar Produto"}
+                  {editingIndex !== null
+                    ? "Atualizar Produto"
+                    : "Adicionar Produto"}
                 </ModalButton>
                 <RemoveImageButton onClick={() => removeImage(newProduct.id)}>
                   Remover Imagem
@@ -657,8 +900,6 @@ const Produtos = () => {
         </ModalContainer>
       )}
 
-
-
       {/* Tabela de Produtos */}
       <Table>
         <thead>
@@ -667,7 +908,10 @@ const Produtos = () => {
             <TableHeader>Imagem</TableHeader>
             <TableHeader>Nome</TableHeader>
             <TableHeader>Categoria</TableHeader>
+            <TableHeader>Clase</TableHeader>
             <TableHeader>Código de Barras</TableHeader>
+            <TableHeader>Custo Anterior</TableHeader>
+            <TableHeader>Custo Medio</TableHeader>
             <TableHeader>Custo</TableHeader>
             <TableHeader>Preço</TableHeader>
             <TableHeader>Margem (%)</TableHeader>
@@ -684,17 +928,22 @@ const Produtos = () => {
                   <img
                     src={`data:image/png;base64,${product.imagem}`}
                     alt="Produto"
-                    style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      objectFit: "cover",
+                    }}
                   />
                 ) : (
                   <span>Sem imagem</span>
                 )}
               </TableCell>
               <TableCell>{product.nome}</TableCell>
-              <TableCell>
-                {product.categoria_nome}
-              </TableCell>
+              <TableCell>{product.categoria_nome}</TableCell>
+              <TableCell>{product.classe_nome}</TableCell>
               <TableCell>{product.codigo_barras}</TableCell>
+              <TableCell>R$ {product.custo_anterior}</TableCell>
+              <TableCell>R$ {product.custo_medio}</TableCell>
               <TableCell>R$ {product.preco_custo.toFixed(2)}</TableCell>
               <TableCell>R$ {product.preco_venda.toFixed(2)}</TableCell>
               <TableCell>{product.margem}%</TableCell>
@@ -703,17 +952,17 @@ const Produtos = () => {
                 <ActionIcon onClick={() => editProduct(index)}>
                   <FaEdit size={16} style={{ color: "#FF9800" }} />
                 </ActionIcon>
-                <ActionIcon onClick={() => confirmDeleteProduct(product)}>
+                <ActionIcon onClick={() => openConfirmDeleteProductModal(product)}>
                   <FaTrash size={16} style={{ color: "#f43f5e" }} />
                 </ActionIcon>
               </TableCell>
             </TableRow>
           ))}
         </tbody>
-
-
       </Table>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}>
+      <div
+        style={{ display: "flex", justifyContent: "center", marginTop: "20px" }}
+      >
         <Button onClick={prevPage} disabled={currentPage === 1}>
           Anterior
         </Button>

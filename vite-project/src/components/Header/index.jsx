@@ -27,6 +27,7 @@ import {
   FaSignInAlt,
   FaChevronDown,
   FaCog,
+  FaChartLine, // Ícone para o botão Vendas
 } from "react-icons/fa";
 
 // Importando Link do react-router-dom
@@ -34,7 +35,6 @@ import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isAsideOpen, setIsAsideOpen] = useState(true);
-  const [isCadastroOpen, setIsCadastroOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -48,48 +48,49 @@ const Header = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const toggleCadastroMenu = () => {
-    setIsCadastroOpen((prev) => !prev);
-  };
-
   return (
     <>
       {/* Menu Lateral */}
       <AsideContainer $isOpen={isAsideOpen}>
         <AsideMenu>
-          <AsideItem bgColor="#4CAF50" hoverColor="#388E3C">
-            <Link to="/dashboard">
-              <FaHome />
-              Dashboard
+          <AsideItem $bgColor="#E91E63" $hoverColor="#C2185B">
+            <Link to="/vendas">
+              <FaChartLine />
+              Vendas
             </Link>
           </AsideItem>
-          <AsideItem bgColor="#FF9800" hoverColor="#F57C00">
+          <AsideItem $bgColor="#FF9800" $hoverColor="#F57C00">
             <Link to="/produtos">
               <FaBox />
               Produtos
             </Link>
           </AsideItem>
-          <AsideItem bgColor="#03A9F4" hoverColor="#0288D1">
+          <AsideItem $bgColor="#03A9F4" $hoverColor="#0288D1">
             <Link to="/fornecedores">
               <FaTruck />
               Fornecedores
             </Link>
           </AsideItem>
-          <AsideItem bgColor="#9C27B0" hoverColor="#7B1FA2">
+          <AsideItem $bgColor="#9C27B0" $hoverColor="#7B1FA2">
             <Link to="/clientes">
               <FaUsers />
               Clientes
             </Link>
           </AsideItem>
-          <AsideItem bgColor="#F44336" hoverColor="#D32F2F">
+          <AsideItem $bgColor="#F44336" $hoverColor="#D32F2F">
             <Link to="/entradas">
               <FaSignInAlt />
               Entradas
             </Link>
           </AsideItem>
+          <AsideItem $bgColor="#4CAF50" $hoverColor="#388E3C">
+            <Link to="/dashboard">
+              <FaHome />
+              Dashboard
+            </Link>
+          </AsideItem>
         </AsideMenu>
       </AsideContainer>
-
 
       {/* Cabeçalho */}
       <HeaderContainer $isAsideOpen={isAsideOpen}>
@@ -108,8 +109,8 @@ const Header = () => {
             </SettingsIcon>
             <ProfileButton>
               <Link to="/filiais">
-            <FaUsers /> Filiais
-            </Link>
+                <FaUsers /> Filiais
+              </Link>
             </ProfileButton>
             <LogoutButton>
               <FaSignInAlt /> Sair
@@ -136,7 +137,9 @@ const Header = () => {
           <ModalContent onClick={(e) => e.stopPropagation()}>
             <h2>Configurações</h2>
             <p>Definições gerais do sistema</p>
-            <button onClick={() => setIsSettingsModalOpen(false)}>Fechar</button>
+            <button onClick={() => setIsSettingsModalOpen(false)}>
+              Fechar
+            </button>
           </ModalContent>
         </ModalContainer>
       )}

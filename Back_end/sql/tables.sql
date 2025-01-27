@@ -3,15 +3,18 @@ CREATE TABLE produtos (
     nome VARCHAR(255) NOT NULL,             -- Nome do produto
     codigo_barras VARCHAR(50) UNIQUE,       -- Código de barras único
     descricao TEXT,                         -- Descrição do produto
-    preco_custo NUMERIC(12, 2) NOT NULL,    -- Preço de custo (valor médio ou principal)
+    preco_custo NUMERIC(12, 2) NOT NULL,    -- Preço de custo atual
+    custo_anterior NUMERIC(12, 2),          -- Custo anterior
+    custo_medio NUMERIC(12, 2),             -- Custo médio do produto
     preco_venda NUMERIC(12, 2) NOT NULL,    -- Preço de venda
     margem NUMERIC(6, 2) GENERATED ALWAYS AS ((preco_venda - preco_custo) / preco_custo * 100) STORED, -- Margem de lucro
     categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL, -- Categoria
+    imagem BYTEA,
+    classe_id INT REFERENCES classes(id) ON DELETE SET NULL                           -- Imagem do produto
     ativo BOOLEAN DEFAULT TRUE,             -- Status do produto
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 
 CREATE TABLE estoque_filial (
     id SERIAL PRIMARY KEY,
@@ -28,6 +31,15 @@ CREATE TABLE categorias (
     nome VARCHAR(255) NOT NULL,
     descricao TEXT
 );
+
+CREATE TABLE classes (
+    id SERIAL PRIMARY KEY,          -- ID único para cada classe
+    nome VARCHAR(255) NOT NULL,     -- Nome da classe (ex.: 350ML, 1L, etc.)
+    descricao TEXT,                 -- Descrição adicional da classe (opcional)
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Data de criação
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- Data de atualização
+);
+
 
 CREATE TABLE fornecedores (
     id SERIAL PRIMARY KEY,

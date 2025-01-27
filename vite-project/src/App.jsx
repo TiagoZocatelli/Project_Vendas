@@ -11,6 +11,7 @@ import Relatorios from "./components/pages/Relatorios";
 import Financeiro from "./components/pages/Financeiro";
 import Logout from "./components/pages/Logout"
 import Filiais from "./components/pages/Filiais";
+import  PDV from "./components/pages/Vendas";
 
 function App() {
   return (
@@ -21,7 +22,7 @@ function App() {
         <Route path="/" element={<h1>Bem-vindo ao sistema</h1>} />
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/filiais" element={<Filiais />} />
-
+        <Route path="/vendas" element={<PDV />} />
         <Route path="/produtos" element={<Produtos />} />
         <Route path="/fornecedores" element={<Fornecedores />} />
         <Route path="/entradas" element={<Entradas />} />

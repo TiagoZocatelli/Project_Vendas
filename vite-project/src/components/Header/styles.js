@@ -61,7 +61,7 @@ export const AsideItem = styled.li`
   width: 100%;
   height: 90px; /* Altura consistente para todos os itens */
   padding: 0 20px; /* Espaçamento interno */
-  background: ${(props) => props.bgColor || "#0056b3"};
+  background: ${(props) => props.$bgColor || "#0056b3"};
   color: ${(props) => props.color || "#ffffff"};
   font-size: 1rem; /* Tamanho do texto */
   font-weight: bold;
@@ -71,7 +71,7 @@ export const AsideItem = styled.li`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 
   &:hover {
-    background: ${(props) => props.hoverColor || "#003d80"};
+    background: ${(props) => props.$hoverColor || "#003d80"};
     transform: translateY(-5px); /* Eleva levemente no hover */
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Aumenta a sombra no hover */
   }

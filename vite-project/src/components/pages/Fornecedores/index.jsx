@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
-  AddForm,
   FormGroup,
-  Input,
   ModalOverlay,
   ModalActions,
   ModalContent,
@@ -12,7 +10,8 @@ import {
 } from "./styles"; // Certifique-se de que o estilo `Notification` está definido aqui
 
 import {
-  Label, Notification, Container,
+  Notification,
+  Container,
   Table,
   TableHeader,
   TableRow,
@@ -136,11 +135,11 @@ const Fornecedores = () => {
             payload
           );
           showMessage("success", "Fornecedor atualizado com sucesso!");
-          closeModal()
+          closeModal();
         } else {
           await axios.post("http://127.0.0.1:5000/fornecedores", payload);
           showMessage("success", "Fornecedor cadastrado com sucesso!");
-          closeModal()
+          closeModal();
         }
 
         fetchSuppliers();
@@ -156,12 +155,16 @@ const Fornecedores = () => {
         });
         setEditingIndex(null);
       } catch (error) {
-        showMessage("error", "Erro ao salvar fornecedor.");
-        console.error("Erro ao salvar fornecedor:", error);
+        const errorMessage =
+          error.response?.data?.error || "Erro ao salvar fornecedor.";
+        showMessage("error", errorMessage);
       }
     } else {
-      showMessage("error", "Todos os campos obrigatórios devem ser preenchidos.");
-      closeModal()
+      showMessage(
+        "error",
+        "Todos os campos obrigatórios devem ser preenchidos."
+      );
+      closeModal();
     }
   };
 
@@ -194,15 +197,25 @@ const Fornecedores = () => {
 
   return (
     <Container>
-
       {isConfirmDeleteOpen && (
         <ConfirmModalContainer>
           <ConfirmModalContent>
             <h2>Confirmar Exclusão</h2>
-            <p>Tem certeza de que deseja excluir o fornecedor "{productToDelete?.name}"?</p>
+            <p>
+              Tem certeza de que deseja excluir o fornecedor "
+              {productToDelete?.name}"?
+            </p>
             <ConfirmButtonContainer>
-              <ConfirmButton onClick={() => removeSupplier(productToDelete?.id)}>Sim, Excluir</ConfirmButton>
-              <ConfirmCancelButton onClick={() => setIsConfirmDeleteOpen(false)}>Cancelar</ConfirmCancelButton>
+              <ConfirmButton
+                onClick={() => removeSupplier(productToDelete?.id)}
+              >
+                Sim, Excluir
+              </ConfirmButton>
+              <ConfirmCancelButton
+                onClick={() => setIsConfirmDeleteOpen(false)}
+              >
+                Cancelar
+              </ConfirmCancelButton>
             </ConfirmButtonContainer>
           </ConfirmModalContent>
         </ConfirmModalContainer>
@@ -211,7 +224,9 @@ const Fornecedores = () => {
       <DivHeader>
         <Button onClick={() => openModal()}>Adicionar Fornecedor</Button>
         {notification.text && (
-          <Notification type={notification.type}>{notification.text}</Notification>
+          <Notification type={notification.type}>
+            {notification.text}
+          </Notification>
         )}
         <SearchBar
           type="text"
@@ -223,7 +238,11 @@ const Fornecedores = () => {
       {isModalOpen && (
         <ModalOverlay>
           <ModalContent>
-            <h2>{editingIndex !== null ? "Editar Fornecedor" : "Adicionar Fornecedor"}</h2>
+            <h2>
+              {editingIndex !== null
+                ? "Editar Fornecedor"
+                : "Adicionar Fornecedor"}
+            </h2>
             <form>
               <FormContainer>
                 <FormGroup>
@@ -277,7 +296,10 @@ const Fornecedores = () => {
                     placeholder="Digite o endereço"
                     value={newSupplier.address}
                     onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, address: e.target.value })
+                      setNewSupplier({
+                        ...newSupplier,
+                        address: e.target.value,
+                      })
                     }
                   />
                 </FormGroup>

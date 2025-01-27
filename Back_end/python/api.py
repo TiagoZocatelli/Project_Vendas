@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
+from psycopg2 import errors  
 import psycopg2
 import base64
+from decimal import Decimal
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -9,7 +11,7 @@ CORS(app)
 # Configuração do banco de dados
 DB_CONFIG = {
     "host": "127.0.0.1",
-    "database": "tzsystem",
+    "database": "systemtz",
     "user": "postgres",
     "password": "senha1",
     "port": 5432
@@ -127,6 +129,99 @@ def excluir_filial(id):
     finally:
         conn.close()
 
+### Criar Classe
+@app.route("/classes", methods=["POST"])
+def criar_classe():
+    """Cria uma nova classe."""
+    data = request.json
+    if not data.get("nome"):
+        return jsonify({"error": "O campo 'nome' é obrigatório."}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO classes (nome, descricao)
+                VALUES (%s, %s) RETURNING id
+            """, (data["nome"], data.get("descricao")))
+            classe_id = cur.fetchone()[0]
+            conn.commit()
+        return jsonify({"message": "Classe criada com sucesso.", "id": classe_id}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+### Alterar Classe
+@app.route("/classes/<int:id>", methods=["PUT"])
+def alterar_classe(id):
+    """Atualiza uma classe pelo ID."""
+    data = request.json
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE classes
+                SET nome = %s, descricao = %s
+                WHERE id = %s
+            """, (data.get("nome"), data.get("descricao"), id))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Classe não encontrada."}), 404
+            conn.commit()
+        return jsonify({"message": "Classe atualizada com sucesso."}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+### Deletar Classe
+@app.route("/classes/<int:id>", methods=["DELETE"])
+def deletar_classe(id):
+    """Exclui uma classe pelo ID."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM classes WHERE id = %s", (id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Classe não encontrada."}), 404
+            conn.commit()
+        return jsonify({"message": "Classe excluída com sucesso."}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+### Listar Classes
+@app.route("/classes", methods=["GET"])
+def listar_classes():
+    """Lista todas as classes."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, nome, descricao FROM classes")
+            rows = cur.fetchall()
+            colunas = [desc[0] for desc in cur.description]
+            classes = [dict(zip(colunas, row)) for row in rows]
+        return jsonify(classes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 # =================== Clientes ===================
 
@@ -182,6 +277,12 @@ def criar_cliente():
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
     try:
         with conn.cursor() as cur:
+            # Verificar se o CPF/CNPJ já está cadastrado
+            cur.execute("SELECT id FROM clientes WHERE cpf_cnpj = %s", (data["cpf_cnpj"],))
+            if cur.fetchone():
+                return jsonify({"error": "CPF/CNPJ já está cadastrado."}), 400
+
+            # Inserir o novo cliente
             cur.execute("""
                 INSERT INTO clientes (nome, cpf_cnpj, endereco, telefone, email)
                 VALUES (%s, %s, %s, %s, %s) RETURNING id
@@ -201,6 +302,7 @@ def criar_cliente():
     finally:
         conn.close()
 
+
 @app.route("/clientes/<int:id>", methods=["PUT"])
 def atualizar_cliente(id):
     """Atualiza os dados de um cliente."""
@@ -210,6 +312,12 @@ def atualizar_cliente(id):
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
     try:
         with conn.cursor() as cur:
+            # Verificar se o CPF/CNPJ já está cadastrado em outro cliente
+            cur.execute("SELECT id FROM clientes WHERE cpf_cnpj = %s AND id != %s", (data["cpf_cnpj"], id))
+            if cur.fetchone():
+                return jsonify({"error": "CPF/CNPJ já está cadastrado em outro cliente."}), 400
+
+            # Atualizar os dados do cliente
             cur.execute("""
                 UPDATE clientes
                 SET nome = %s, cpf_cnpj = %s, endereco = %s, telefone = %s, email = %s
@@ -251,13 +359,13 @@ def excluir_cliente(id):
 
 @app.route("/produtos", methods=["GET"])
 def listar_produtos():
-    """Lista todos os produtos com os estoques por filial, imagem e nome da categoria.""" 
+    """Lista todos os produtos com os estoques por filial, imagem, nome da categoria, nome da classe, custo médio e custo anterior.""" 
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
     try:
         with conn.cursor() as cur:
-            # Consulta para buscar os produtos, estoques, e nome da categoria
+            # Consulta para buscar os produtos, estoques, nome da categoria e nome da classe
             cur.execute("""
                 SELECT 
                     p.id AS produto_id,
@@ -268,16 +376,21 @@ def listar_produtos():
                     p.margem,
                     p.categoria_id,
                     c.nome AS categoria_nome, -- Nome da categoria
+                    p.classe_id,
+                    cl.nome AS classe_nome,   -- Nome da classe
                     p.ativo,
                     p.criado_em,
                     p.atualizado_em,
                     ef.filial_id,
                     ef.quantidade,
                     ef.estoque_minimo,
-                    p.imagem  -- Adiciona a imagem
+                    p.imagem,                -- Adiciona a imagem
+                    p.custo_medio,           -- Adiciona o custo médio
+                    p.custo_anterior         -- Adiciona o custo anterior
                 FROM produtos p
                 LEFT JOIN estoque_filial ef ON p.id = ef.produto_id
                 LEFT JOIN categorias c ON p.categoria_id = c.id -- Junção com a tabela de categorias
+                LEFT JOIN classes cl ON p.classe_id = cl.id     -- Junção com a tabela de classes
             """)
             rows = cur.fetchall()
             
@@ -301,10 +414,14 @@ def listar_produtos():
                         "preco_venda": row_dict["preco_venda"],
                         "margem": row_dict["margem"],
                         "categoria_id": row_dict["categoria_id"],
-                        "categoria_nome": row_dict["categoria_nome"],  # Adiciona o nome da categoria
+                        "categoria_nome": row_dict["categoria_nome"],  # Nome da categoria
+                        "classe_id": row_dict["classe_id"],
+                        "classe_nome": row_dict["classe_nome"],        # Nome da classe
                         "ativo": row_dict["ativo"],
                         "criado_em": row_dict["criado_em"],
                         "atualizado_em": row_dict["atualizado_em"],
+                        "custo_medio": row_dict["custo_medio"],        # Custo médio
+                        "custo_anterior": row_dict["custo_anterior"],  # Custo anterior
                         "estoques": [],
                         "imagem": None  # Inicializa a imagem
                     }
@@ -329,7 +446,6 @@ def listar_produtos():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
 
 @app.route('/produtos/<int:id>/imagem', methods=['PUT'])
 def atualizar_imagem_produto(id):
@@ -372,9 +488,6 @@ def atualizar_imagem_produto(id):
     finally:
         conn.close()
 
-
-
-
 # Excluir imagem de um produto
 @app.route('/produtos/<int:id>/imagem', methods=['DELETE'])
 def excluir_imagem_produto(id):
@@ -393,6 +506,198 @@ def excluir_imagem_produto(id):
 
             conn.commit()
         return jsonify({"message": "Imagem removida com sucesso."}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/produtos", methods=["POST"])
+def criar_produto():
+    """Cria um novo produto com detalhes de estoque por filial, categoria e classe."""
+    data = request.json
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            # Verificar campos obrigatórios
+            required_fields = ["nome", "codigo_barras", "preco_custo", "preco_venda", "categoria_id", "classe_id"]
+            if not all(field in data for field in required_fields):
+                return jsonify({"error": "Campos obrigatórios estão faltando."}), 400
+
+            # Verificar se o código de barras já existe
+            cur.execute("""
+                SELECT id FROM produtos WHERE codigo_barras = %s
+            """, (data["codigo_barras"],))
+            if cur.fetchone():
+                return jsonify({"error": "Código de barras já está cadastrado."}), 400
+
+            # Inserir o produto na tabela `produtos`
+            cur.execute("""
+                INSERT INTO produtos (nome, codigo_barras, preco_custo, preco_venda, categoria_id, classe_id, custo_medio, custo_anterior)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """, (
+                data["nome"],
+                data["codigo_barras"],
+                data["preco_custo"],
+                data["preco_venda"],
+                data["categoria_id"],  # ID da categoria
+                data["classe_id"],     # ID da classe
+                data["preco_custo"],   # Inicializa o custo médio com o preço de custo
+                None                   # Inicializa o custo anterior como NULL
+            ))
+            produto_id = cur.fetchone()[0]
+
+            # Inserir o estoque inicial por filial, se fornecido
+            for filial in data.get("estoques", []):  # `estoques` é uma lista de objetos com filial_id e quantidade
+                cur.execute("""
+                    INSERT INTO estoque_filial (filial_id, produto_id, quantidade, estoque_minimo)
+                    VALUES (%s, %s, %s, %s)
+                """, (
+                    filial["filial_id"],
+                    produto_id,
+                    filial.get("quantidade", 0),        # Quantidade inicial
+                    filial.get("estoque_minimo", 0)     # Estoque mínimo
+                ))
+
+            conn.commit()
+        return jsonify({"message": "Produto criado com sucesso.", "id": produto_id}), 201
+    except Exception as e:
+        print(e)
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/produtos/<int:id>", methods=["PUT"])
+def atualizar_produto(id):
+    """Atualiza os dados do produto, incluindo nome, código de barras, classe, categoria, custos e preço de venda."""
+    data = request.json
+
+    try:
+        # Converte os valores recebidos para tipos apropriados
+        novo_custo = Decimal(data.get("preco_custo", 0))  # Convertendo para Decimal
+        novo_preco_venda = Decimal(data.get("preco_venda", 0))  # Convertendo para Decimal
+        nova_quantidade = int(data.get("quantidade", 0))
+        nome = data.get("nome", "").strip()
+        codigo_barras = data.get("codigo_barras", "").strip()
+        classe_id = data.get("classe_id")  # Inteiro ou None
+        categoria_id = data.get("categoria_id")  # Inteiro ou None
+    except (ValueError, TypeError):
+        return jsonify({"error": "Dados inválidos. Verifique os campos enviados."}), 400
+
+    if not nome or not codigo_barras:
+        return jsonify({"error": "Os campos 'nome' e 'codigo_barras' são obrigatórios."}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
+    try:
+        with conn.cursor() as cur:
+            # Buscar o custo atual e o custo médio do produto
+            cur.execute("""
+                SELECT preco_custo, custo_medio
+                FROM produtos
+                WHERE id = %s
+            """, (id,))
+            produto = cur.fetchone()
+            if not produto:
+                return jsonify({"error": "Produto não encontrado."}), 404
+
+            custo_atual, custo_medio = produto
+
+            # Converter valores retornados do banco para Decimal
+            custo_atual = Decimal(custo_atual) if custo_atual is not None else Decimal(0)
+            custo_medio = Decimal(custo_medio) if custo_medio is not None else custo_atual
+
+            # Atualizar o custo anterior com o custo atual
+            custo_anterior = custo_atual
+
+            # Evitar divisão por zero caso `nova_quantidade` seja 0
+            novo_custo_medio = (
+                (custo_medio * Decimal(nova_quantidade) + novo_custo)
+                / (Decimal(nova_quantidade) + Decimal(1))
+            )
+
+            # Atualizar os valores no banco de dados
+            cur.execute("""
+                UPDATE produtos
+                SET nome = %s,                -- Atualiza o nome
+                    codigo_barras = %s,       -- Atualiza o código de barras
+                    classe_id = %s,           -- Atualiza a classe (se fornecida)
+                    categoria_id = %s,        -- Atualiza a categoria (se fornecida)
+                    custo_anterior = %s,      -- Move o custo atual para custo anterior
+                    preco_custo = %s,         -- Atualiza o custo atual
+                    custo_medio = %s,         -- Atualiza o custo médio
+                    preco_venda = %s          -- Atualiza o preço de venda
+                WHERE id = %s
+            """, (
+                nome,
+                codigo_barras,
+                classe_id,
+                categoria_id,
+                custo_anterior,
+                novo_custo,
+                novo_custo_medio,
+                novo_preco_venda,
+                id
+            ))
+
+            conn.commit()
+        return jsonify({"message": "Produto atualizado com sucesso."}), 200
+    except Exception as e:
+        print(e)
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/produtos/<int:id>", methods=["DELETE"])
+def excluir_produto(id):
+    """Exclui um produto pelo ID, removendo itens relacionados e entradas correspondentes."""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco."}), 500
+    try:
+        with conn.cursor() as cur:
+            # Verificar se o produto existe
+            cur.execute("SELECT id FROM produtos WHERE id = %s", (id,))
+            produto = cur.fetchone()
+            if not produto:
+                return jsonify({"error": "Produto não encontrado."}), 404
+
+            # Buscar IDs das entradas relacionadas ao produto na tabela itens_entrada
+            cur.execute("""
+                SELECT DISTINCT entrada_id
+                FROM itens_entrada
+                WHERE produto_id = %s
+            """, (id,))
+            entradas_relacionadas = cur.fetchall()
+
+            # Remover os itens associados ao produto na tabela itens_entrada
+            cur.execute("""
+                DELETE FROM itens_entrada
+                WHERE produto_id = %s
+            """, (id,))
+
+            # Remover as entradas relacionadas ao produto na tabela entradas
+            for entrada_id in entradas_relacionadas:
+                cur.execute("""
+                    DELETE FROM entradas
+                    WHERE id = %s
+                """, (entrada_id,))
+
+            # Finalmente, excluir o produto da tabela produtos
+            cur.execute("""
+                DELETE FROM produtos
+                WHERE id = %s
+            """, (id,))
+
+            conn.commit()
+        return jsonify({"message": "Produto e itens relacionados excluídos com sucesso."}), 200
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
@@ -505,111 +810,6 @@ def deletar_categoria(id):
     finally:
         conn.close()  # Fecha a conexão com o banco
 
-@app.route("/produtos", methods=["POST"])
-def criar_produto():
-    """Cria um novo produto e define o estoque por filial."""
-    data = request.json
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Erro ao conectar ao banco."}), 500
-    try:
-        with conn.cursor() as cur:
-            # Inserir o produto na tabela `produtos`
-            cur.execute("""
-                INSERT INTO produtos (nome, codigo_barras, preco_custo, preco_venda, categoria_id)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
-            """, (
-                data["nome"],
-                data.get("codigo_barras"),
-                data["preco_custo"],
-                data["preco_venda"],
-                data.get("categoria_id")  # `categoria_id` deve ser incluído no corpo da requisição
-            ))
-            produto_id = cur.fetchone()[0]
-
-            # Inserir o estoque inicial por filial
-            for filial in data.get("estoques", []):  # `estoques` é uma lista de objetos com filial_id e quantidade
-                cur.execute("""
-                    INSERT INTO estoque_filial (filial_id, produto_id, quantidade, estoque_minimo)
-                    VALUES (%s, %s, %s, %s)
-                """, (
-                    filial["filial_id"],
-                    produto_id,
-                    filial.get("quantidade", 0),
-                    filial.get("estoque_minimo", 0)
-                ))
-
-            conn.commit()
-        return jsonify({"message": "Produto criado com sucesso.", "id": produto_id}), 201
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-@app.route("/produtos/<int:id>", methods=["PUT"])
-def atualizar_produto(id):
-    """Atualiza os dados de um produto e seus estoques por filial."""
-    data = request.json
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Erro ao conectar ao banco."}), 500
-    try:
-        with conn.cursor() as cur:
-            # Atualizar os dados do produto
-            cur.execute("""
-                UPDATE produtos
-                SET nome = %s, codigo_barras = %s, preco_custo = %s, preco_venda = %s, categoria_id = %s
-                WHERE id = %s
-            """, (
-                data["nome"],
-                data.get("codigo_barras"),
-                data["preco_custo"],
-                data["preco_venda"],
-                data.get("categoria_id"),  # Atualizar a categoria do produto
-                id
-            ))
-
-            # Atualizar ou inserir os estoques por filial
-            for filial in data.get("estoques", []):  # `estoques` é uma lista de objetos com filial_id e quantidade
-                cur.execute("""
-                    INSERT INTO estoque_filial (filial_id, produto_id, quantidade, estoque_minimo)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (filial_id, produto_id) DO UPDATE
-                    SET quantidade = EXCLUDED.quantidade,
-                        estoque_minimo = EXCLUDED.estoque_minimo
-                """, (
-                    filial["filial_id"],
-                    id,
-                    filial.get("quantidade", 0),
-                    filial.get("estoque_minimo", 0)
-                ))
-
-            conn.commit()
-        return jsonify({"message": "Produto atualizado com sucesso."})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-
-@app.route("/produtos/<int:id>", methods=["DELETE"])
-def excluir_produto(id):
-    """Exclui um produto pelo ID."""
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({"error": "Erro ao conectar ao banco."}), 500
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM produtos WHERE id = %s", (id,))
-            conn.commit()
-        return jsonify({"message": "Produto excluído com sucesso."})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
 @app.route("/entradas", methods=["GET"])
 def obter_entradas():
@@ -693,9 +893,10 @@ def obter_entradas():
     
     finally:
         conn.close()
+
 @app.route("/entradas-notas", methods=["POST"])
 def criar_entrada():
-    """Cria uma nova entrada e adiciona os itens relacionados."""
+    """Cria uma nova entrada e adiciona os itens relacionados, atualizando custos e estoque."""
     data = request.json
     conn = get_db_connection()
     
@@ -704,35 +905,39 @@ def criar_entrada():
     
     try:
         with conn.cursor() as cur:
-            # Adicionar a entrada na tabela 'entradas' com fornecedor_id e filial_id
+            # Adicionar a entrada na tabela 'entradas'
             cur.execute("""
                 INSERT INTO entradas (fornecedor_id, total, observacoes, filial_id)
                 VALUES (%s, %s, %s, %s) RETURNING id
             """, (
                 data["fornecedor_id"],
-                data["total"],
+                Decimal(data["total"]),
                 data["observacoes"],
-                data["filial_id"]  # Incluindo filial_id
+                data["filial_id"]
             ))
             
-            # Pega o id da entrada recém-criada
             entrada_id = cur.fetchone()[0]
-            
-            # Agora adiciona os itens dessa entrada
+
+            # Processar os itens da entrada
             for item in data["itens"]:
+                produto_id = item["produto_id"]
+                nova_quantidade = Decimal(item["quantidade"])
+                novo_preco_custo = Decimal(item["preco_custo"])
+
+                # Inserir o item na tabela itens_entrada
                 cur.execute("""
                     INSERT INTO itens_entrada (entrada_id, produto_id, quantidade, preco_custo, fornecedor_id, filial_id)
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     entrada_id,
-                    item["produto_id"],
-                    item["quantidade"],
-                    item["preco_custo"],
+                    produto_id,
+                    nova_quantidade,
+                    novo_preco_custo,
                     data["fornecedor_id"],
-                    data["filial_id"]  # Incluindo filial_id nos itens
+                    data["filial_id"]
                 ))
                 
-                # Atualiza o estoque do produto na tabela estoque_filial
+                # Atualizar o estoque
                 cur.execute("""
                     INSERT INTO estoque_filial (filial_id, produto_id, quantidade)
                     VALUES (%s, %s, %s)
@@ -740,21 +945,61 @@ def criar_entrada():
                     DO UPDATE SET quantidade = estoque_filial.quantidade + EXCLUDED.quantidade
                 """, (
                     data["filial_id"],
-                    item["produto_id"],
-                    item["quantidade"]
+                    produto_id,
+                    nova_quantidade
                 ))
 
-            # Commit para salvar tudo no banco
+                # Obter a quantidade atual do estoque na filial
+                cur.execute("""
+                    SELECT quantidade
+                    FROM estoque_filial
+                    WHERE filial_id = %s AND produto_id = %s
+                """, (data["filial_id"], produto_id))
+                estoque = cur.fetchone()
+
+                quantidade_atual = Decimal(estoque[0]) if estoque else Decimal(0)
+
+                # Atualizar custos do produto
+                cur.execute("""
+                    SELECT preco_custo, custo_medio
+                    FROM produtos
+                    WHERE id = %s
+                """, (produto_id,))
+                produto = cur.fetchone()
+                
+                if produto:
+                    custo_atual = Decimal(produto[0])
+                    custo_medio = Decimal(produto[1]) if produto[1] is not None else custo_atual
+
+                    # Atualizar o custo médio
+                    quantidade_total = quantidade_atual + nova_quantidade
+                    novo_custo_medio = (
+                        (custo_medio * quantidade_atual + novo_preco_custo * nova_quantidade)
+                        / quantidade_total
+                    )
+
+                    # Mover custo atual para custo anterior e atualizar custo médio
+                    cur.execute("""
+                        UPDATE produtos
+                        SET custo_anterior = preco_custo,
+                            preco_custo = %s,
+                            custo_medio = %s
+                        WHERE id = %s
+                    """, (novo_preco_custo, novo_custo_medio, produto_id))
+
+            # Commit para salvar todas as alterações
             conn.commit()
         
-        return jsonify({"message": "Entrada e itens adicionados com sucesso."}), 201
+        return jsonify({"message": "Entrada, itens e custos atualizados com sucesso."}), 201
     
     except Exception as e:
+        print(e)
         conn.rollback()
         return jsonify({"error": str(e)}), 500
     
     finally:
         conn.close()
+
 
 @app.route("/entradas/<int:id>/cancelar", methods=["DELETE"])
 def cancelar_entrada(id):
@@ -765,6 +1010,7 @@ def cancelar_entrada(id):
     try:
         with conn.cursor() as cur:
             print(f"Tentando cancelar entrada com ID: {id}")
+
             # Buscar todos os itens associados à entrada
             cur.execute("""
                 SELECT produto_id, quantidade, filial_id 
@@ -774,29 +1020,28 @@ def cancelar_entrada(id):
             itens = cur.fetchall()
             print(f"Itens associados à entrada: {itens}")
 
-            if not itens:
-                return jsonify({"error": "Nenhum item encontrado para esta entrada."}), 404
+            # Ajustar o estoque dos produtos (somente se houver itens)
+            if itens:
+                for produto_id, quantidade, filial_id in itens:
+                    print(f"Ajustando estoque para Produto ID: {produto_id}, Filial ID: {filial_id}")
+                    cur.execute("""
+                        UPDATE estoque_filial
+                        SET quantidade = quantidade - %s
+                        WHERE produto_id = %s AND filial_id = %s
+                    """, (quantidade, produto_id, filial_id))
+                    print(f"Rows afetadas: {cur.rowcount}")
+                    if cur.rowcount == 0:
+                        print(f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}")
+                        return jsonify({"error": f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}"}), 400
 
-            # Ajustar o estoque dos produtos
-            for produto_id, quantidade, filial_id in itens:
-                print(f"Ajustando estoque para Produto ID: {produto_id}, Filial ID: {filial_id}")
-                cur.execute("""
-                    UPDATE estoque_filial
-                    SET quantidade = quantidade - %s
-                    WHERE produto_id = %s AND filial_id = %s
-                """, (quantidade, produto_id, filial_id))
-                print(f"Rows afetadas: {cur.rowcount}")
-                if cur.rowcount == 0:
-                    print(f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}")
-                    return jsonify({"error": f"Estoque não encontrado para Produto ID {produto_id} e Filial ID {filial_id}"}), 400
+                # Excluir todos os itens associados à entrada
+                cur.execute("DELETE FROM itens_entrada WHERE entrada_id = %s", (id,))
+                print(f"Itens excluídos para a entrada {id}")
 
-            # Excluir todos os itens associados à entrada
-            cur.execute("DELETE FROM itens_entrada WHERE entrada_id = %s", (id,))
-            print(f"Itens excluídos para a entrada {id}")
-
-            # Excluir a entrada
+            # Excluir a entrada mesmo que não existam itens
             cur.execute("DELETE FROM entradas WHERE id = %s", (id,))
             print(f"Entrada {id} excluída com sucesso")
+
             conn.commit()
         return jsonify({"message": "Entrada cancelada e estoque ajustado com sucesso."}), 200
     except Exception as e:
@@ -868,7 +1113,7 @@ def criar_fornecedor():
                 data["cnpj"],
                 data.get("telefone"),
                 data.get("endereco"),
-                data["email"],
+                data.get("email"),
                 data["estado"],
                 data["cidade"],
                 data["cep"]
@@ -876,6 +1121,12 @@ def criar_fornecedor():
             fornecedor_id = cur.fetchone()[0]
             conn.commit()
         return jsonify({"message": "Fornecedor criado com sucesso.", "id": fornecedor_id}), 201
+    except errors.UniqueViolation as e:
+        conn.rollback()
+        # Verifica se o erro é referente ao campo 'cnpj'
+        if 'cnpj' in str(e):
+            return jsonify({"error": "CNPJ já está cadastrado."}), 400
+        return jsonify({"error": "Violação de chave única."}), 400
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
