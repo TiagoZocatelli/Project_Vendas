@@ -1,17 +1,17 @@
 CREATE TABLE produtos (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL,             -- Nome do produto
-    codigo_barras VARCHAR(50) UNIQUE,       -- Código de barras único
-    descricao TEXT,                         -- Descrição do produto
-    preco_custo NUMERIC(12, 2) NOT NULL,    -- Preço de custo atual
-    custo_anterior NUMERIC(12, 2),          -- Custo anterior
-    custo_medio NUMERIC(12, 2),             -- Custo médio do produto
-    preco_venda NUMERIC(12, 2) NOT NULL,    -- Preço de venda
-    margem NUMERIC(6, 2) GENERATED ALWAYS AS ((preco_venda - preco_custo) / preco_custo * 100) STORED, -- Margem de lucro
-    categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL, -- Categoria
+    nome VARCHAR(255) NOT NULL,             
+    codigo_barras VARCHAR(50) UNIQUE,       
+    descricao TEXT,                         
+    preco_custo NUMERIC(12, 2) NOT NULL,    
+    custo_anterior NUMERIC(12, 2),          
+    custo_medio NUMERIC(12, 2),             
+    preco_venda NUMERIC(12, 2) NOT NULL,   
+    margem NUMERIC(6, 2) GENERATED ALWAYS AS ((preco_venda - preco_custo) / preco_custo * 100) STORED, 
+    categoria_id INT REFERENCES categorias(id) ON DELETE SET NULL, 
     imagem BYTEA,
-    classe_id INT REFERENCES classes(id) ON DELETE SET NULL                           -- Imagem do produto
-    ativo BOOLEAN DEFAULT TRUE,             -- Status do produto
+    classe_id INT REFERENCES classes(id) ON DELETE SET null,                          
+    ativo BOOLEAN DEFAULT TRUE,             
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -49,7 +49,8 @@ CREATE TABLE fornecedores (
     endereco TEXT,                          -- Endereço
     email VARCHAR(255),                     -- Email para contato
     estado VARCHAR(2),                      -- Estado
-    cidade VARCHAR(100),                    -- Cidade
+    cidade VARCHAR(100),
+    cep VARCHAR(8)                    -- Cidade
     ativo BOOLEAN DEFAULT TRUE,             -- Status do fornecedor
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP

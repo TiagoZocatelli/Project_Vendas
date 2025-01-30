@@ -11,7 +11,7 @@ CORS(app)
 # Configuração do banco de dados
 DB_CONFIG = {
     "host": "127.0.0.1",
-    "database": "systemtz",
+    "database": "tzsystem",
     "user": "postgres",
     "password": "senha1",
     "port": 5432

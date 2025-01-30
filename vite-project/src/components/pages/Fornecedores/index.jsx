@@ -26,6 +26,7 @@ import {
   ConfirmButtonContainer,
 } from "../../../styles/utils";
 import { FaEdit, FaTrash } from "react-icons/fa";
+import api from "../../../api";
 
 const Fornecedores = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -62,7 +63,7 @@ const Fornecedores = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:5000/fornecedores");
+      const response = await api.get("/fornecedores");
       const formattedSuppliers = response.data.map((supplier) => ({
         name: supplier.nome,
         cnpj: supplier.cnpj,
@@ -130,14 +131,14 @@ const Fornecedores = () => {
 
         if (editingIndex !== null) {
           const supplierToUpdate = suppliers[editingIndex];
-          await axios.put(
-            `http://127.0.0.1:5000/fornecedores/${supplierToUpdate.id}`,
+          await api.put(
+            `/fornecedores/${supplierToUpdate.id}`,
             payload
           );
           showMessage("success", "Fornecedor atualizado com sucesso!");
           closeModal();
         } else {
-          await axios.post("http://127.0.0.1:5000/fornecedores", payload);
+          await api.post("/fornecedores", payload);
           showMessage("success", "Fornecedor cadastrado com sucesso!");
           closeModal();
         }
@@ -175,7 +176,7 @@ const Fornecedores = () => {
 
   const removeSupplier = async (id) => {
     try {
-      await axios.delete(`http://127.0.0.1:5000/fornecedores/${id}`);
+      await api.delete(`/fornecedores/${id}`);
       showMessage("success", "Fornecedor removido com sucesso!");
       fetchSuppliers();
       setIsConfirmDeleteOpen(false); // Fecha o modal de confirmação

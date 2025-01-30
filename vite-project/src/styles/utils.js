@@ -1,6 +1,24 @@
 import styled from "styled-components";
 
 
+export const LeftButton = styled.div`
+  position: fixed;
+  top: 12px;
+  left: 15px;
+  width: 40px;
+  height: 40px;
+  background:rgb(158, 11, 11);
+  border-radius: 16px;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+`;
+
 
 export const Container = styled.div`
   margin-left: 260px;

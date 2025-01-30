@@ -5,11 +5,46 @@ export const Container = styled.div`
   gap: 20px;
   background: linear-gradient(
     145deg,
-    #f0f8ff,
-    #e3f2fd
-  ); /* Fundo gradiente suave */
-  padding: 20px;
-  margin-left: 250px;
+    #102c57,
+    #0056b3
+  ); 
+  padding: 8px;
+  height: 88vh;
+`;
+
+export const IconButtonGroup = styled.div`
+  display: flex;
+  gap: 10px; /* Espaçamento entre os botões */
+  justify-content: center; /* Centraliza os botões */
+  align-items: center;
+  margin-top: 10px;
+`;
+
+
+export const IconButton = styled.button`
+  background: ${(props) => props.$bgColor || "#0056b3"}; /* Cor padrão */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  margin: 5px;
+
+  &:hover {
+    background-color: #0056b3; /* Cor ao passar o mouse */
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
 `;
 
 export const LeftSection = styled.div`
@@ -18,9 +53,13 @@ export const LeftSection = styled.div`
   flex-direction: column;
   background-color: white;
   border-radius: 10px;
-  padding: 20px;
+  padding: 10px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border: 3px solid #FF9800;
+  height: 79vh; /* Define altura do container */
+  justify-content: space-between; /* Garante que o conteúdo se distribua */
 `;
+
 
 export const ProductDisplay = styled.div`
   background: linear-gradient(
@@ -68,13 +107,11 @@ export const Button = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${(props) =>
-    props.$bgColor ||
-    "linear-gradient(145deg,  #102c57, #0056b3)"}; /* Gradiente para os botões */
+  background: ${(props) => props.$bgColor || "#0056b3"};
   color: #ffffff;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: bold;
-  padding: 4px 24px;
+  padding: 4px 4px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -85,9 +122,11 @@ export const Button = styled.button`
 export const RightSection = styled.div`
   flex: 2;
   background-color: #ffffff;
+  border: 3px solid #FF9800;
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  height: 79vh;
 `;
 
 export const ProductGrid = styled.div`
@@ -325,58 +364,185 @@ export const HighlightedTotal = styled.div`
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `;
 
+export const OperatorInfo = styled.div`
+  position: fixed;
+  bottom: 0px;
+  left: 0;
+  width: 100%;
+  background: #102C57; /* Azul escuro profissional */
+  color: #FFFFFF; /* Branco */
+  text-align: center;
+  padding: 12px 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-top: 4px solid #C8A52E; /* Dourado refinado para destaque */
+  
+  /* Responsividade */
+  @media (max-width: 768px) {
+    font-size: 1rem;
+    padding: 8px 0;
+  }
+`;
+
+export const SettingsIcon = styled.div`
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  cursor: pointer;
+  font-size: 2rem;
+  color: #FFD700; /* Dourado para destacar */
+  transition: transform 0.2s ease-in-out;
+
+  &:hover {
+    transform: rotate(30deg);
+  }
+`;
+
+export const SettingsModal = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #102C57; /* Azul escuro profissional */
+  color: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  width: 350px;
+  max-width: 90%;
+  text-align: center;
+  z-index: 10000;
+
+  h2 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: #FFD700; /* Dourado para destaque */
+  }
+`;
+
+export const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+`;
+
+export const SettingsLabel = styled.label`
+  display: block;
+  text-align: left;
+  margin-top: 12px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #FFD700; /* Dourado para melhor contraste */
+`;
+
+export const SettingsSelect = styled.select`
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 6px;
+  border: 2px solid #FFD700; /* Dourado refinado */
+  background: #1C1C1C;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #E6C300;
+  }
+`;
+
+export const SettingsInput = styled.input`
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 6px;
+  border: 2px solid #FFD700;
+  background: #1C1C1C;
+  color: white;
+  font-size: 1rem;
+  text-align: center;
+
+  &:focus {
+    outline: none;
+    border-color: #E6C300;
+  }
+`;
+
+export const SettingsCheckbox = styled.input`
+  margin-top: 10px;
+  transform: scale(1.3);
+  cursor: pointer;
+`;
+
+export const SettingsButton = styled.button`
+  margin-top: 20px;
+  padding: 12px;
+  background: #FFD700; /* Dourado vibrante */
+  color: black;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+  width: 100%;
+  transition: background 0.3s ease-in-out;
+
+  &:hover {
+    background: #E6C300;
+  }
+`;
 export const DivDesc = styled.div`
   display: flex; /* Para centralizar itens dentro do DivDesc */
   justify-content: center; /* Centraliza horizontalmente */
   align-items: center; /* Centraliza verticalmente */
-  margin-top: 80px;
-  margin-left: 250px;
 `;
 
 export const HighlightedProduct = styled.div`
-  background: linear-gradient(
-    145deg,
-    #102c57,
-    #0056b3
-  ); /* Gradiente Azul Escuro */
-  color: white;
-  font-size: 1.6rem;
+  background: #102C57; /* Azul escuro sofisticado */
+  color:rgb(255, 255, 255); /* Branco puro para melhor contraste */
+  font-size: 1.8rem;
   font-weight: bold;
   text-align: center;
-  border-radius: 16px;
-  padding: 20px;
-  width: 100%; /* Ocupa toda a largura do contêiner */
-  max-width: 1600px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* Sombra para destaque */
+  width: 100%;
+  border: 3px solid #FF9800; /* Prata metálico refinado */
+  padding: 10px; /* Melhor espaçamento */
 
-  /* Centralização dentro do DivDesc */
+  /* Layout responsivo */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  /* Ajuste de margens */
-  margin: 0 auto; /* Remove espaços adicionais */
-  box-sizing: border-box; /* Garante que padding e bordas não influenciem no tamanho */
+  box-sizing: border-box;
 
   h3 {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 2.8rem;
+    margin-bottom: 8px;
+    color:rgb(255, 255, 255); /* Azul claro suave para destaque */
   }
 
   p {
-    font-size: 1.2rem;
+    font-size: 1.6rem;
     margin: 5px 0;
-    color: #e0f7fa; /* Azul claro para contraste */
+    color: #D9D9D9; /* Cinza claro refinado */
   }
 
   span {
-    display: block;
-    margin-top: 10px;
-    font-size: 1.4rem;
-    font-weight: normal;
-    color: #ffeb3b; /* Amarelo para destaques menores */
+    font-size: 1.8rem;
+    font-weight: bold;
+    color:rgb(255, 255, 255); /* Azul metálico para pequenos destaques */
   }
 `;
+
+
+
 
 export const TotalContainer = styled.div`
   color: white;
@@ -384,8 +550,7 @@ export const TotalContainer = styled.div`
   font-weight: bold;
   text-align: center;
   border-radius: 12px;
-  padding: 20px;
-  margin-top: 20px;
+  padding: 10px;
 
   span {
     display: block;
@@ -415,11 +580,12 @@ export const ProductTable = styled.div`
   thead {
     background: linear-gradient(145deg, #102c57, #0056b3);
     color: white;
+    
   }
 
   th,
   td {
-    padding: 10px 15px;
+    padding: 5px 15px;
     text-align: center;
     border: 1px solid #ddd;
     font-size: 1rem;
@@ -484,6 +650,100 @@ export const ProductTable = styled.div`
     }
   }
 `;
+
+export const ProductTableWrapper = styled.div`
+width: 100%;
+max-height: 500px;
+overflow-y: auto;
+border: 1px solid #ddd;
+border-radius: 8px;
+background: white;
+padding: 10px;
+box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Garante que a tabela ocupe toda a largura disponível */
+}
+
+thead {
+  background: linear-gradient(145deg, #1e3a5f, #0056b3);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.8rem;
+  width: 100%;
+  display: table;
+  table-layout: fixed;
+}
+
+th,
+td {
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  font-size: 0.9rem;
+  width: auto;
+}
+
+th {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+tbody {
+  display: block;
+  max-height: 350px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  transition: background-color 0.3s;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+tbody tr:hover {
+  background-color: #dce8f5;
+}
+
+img {
+  max-width: 50px;
+  max-height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: transform 0.3s;
+}
+
+img:hover {
+  transform: scale(1.1);
+}
+
+button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s, transform 0.2s;
+
+  &:hover {
+    background-color: #d32f2f;
+    transform: scale(1.05);
+  }
+}
+`;
+
 
 export const TotalDisplay = styled.div`
   background: linear-gradient(145deg, #102c57, #0056b3);

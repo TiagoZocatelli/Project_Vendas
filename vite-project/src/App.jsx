@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import GlobalStyle from "./styles/global";
 
@@ -9,15 +9,27 @@ import Fornecedores from "./components/pages/Fornecedores";
 import Entradas from "./components/pages/Entradas";
 import Relatorios from "./components/pages/Relatorios";
 import Financeiro from "./components/pages/Financeiro";
-import Logout from "./components/pages/Logout"
+import Logout from "./components/pages/Logout";
 import Filiais from "./components/pages/Filiais";
-import  PDV from "./components/pages/Vendas";
+import PDV from "./components/pages/Vendas";
+import { IconButton } from "./components/pages/Vendas/styles";
+import { FaArrowLeft } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { LeftButton } from "./styles/utils";
 
-function App() {
+function Layout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   return (
-    <Router>
+    <>
       <GlobalStyle />
-      <Header />
+      {location.pathname !== "/vendas" && <Header />}
+      {location.pathname === "/vendas" && (
+        <LeftButton onClick={() => navigate(-1)} style={{ margin: "10px" }}>
+          <FaArrowLeft /> 
+        </LeftButton>
+      )}
       <Routes>
         <Route path="/" element={<h1>Bem-vindo ao sistema</h1>} />
         <Route path="/clientes" element={<Clientes />} />
@@ -30,6 +42,14 @@ function App() {
         <Route path="/financeiro" element={<Financeiro />} />
         <Route path="/logout" element={<Logout />} />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Layout />
     </Router>
   );
 }
