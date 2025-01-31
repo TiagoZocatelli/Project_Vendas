@@ -127,7 +127,7 @@ export const ConfirmButtonContainer = styled.div`
   gap: 10px; /* Espaçamento suave entre os botões */
 `;
 
-export const ConfirmButton = styled.button`
+export const ConfirmCancelButton = styled.button`
   padding: 10px 20px;
   font-size: 1rem;
   font-weight: 500;
@@ -136,6 +136,8 @@ export const ConfirmButton = styled.button`
   cursor: pointer;
   transition: background 0.3s ease, transform 0.2s ease;
   color: #ffffff;
+  margin-top: 16px;
+  margin-bottom: 8px;
 
   /* Cor do botão */
   background: #ef4444; /* Vermelho suave */
@@ -147,7 +149,7 @@ export const ConfirmButton = styled.button`
   }
 `;
 
-export const ConfirmCancelButton = styled(ConfirmButton)`
+export const ConfirmButton = styled(ConfirmCancelButton)`
   background: #0056b3; /* Cinza claro */
   color: #ffffff; /* Cinza escuro para texto */
 
@@ -277,6 +279,7 @@ export const Input = styled.input`
   background: #f9f9f9;
   width: 100%;
   transition: border-color 0.3s ease;
+  margin-bottom: 8px;
 
   &:focus {
     border-color: #1e88e5;

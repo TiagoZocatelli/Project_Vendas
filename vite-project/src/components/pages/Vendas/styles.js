@@ -500,15 +500,14 @@ export const SettingsSelect = styled.select`
   padding: 10px;
   margin-top: 5px;
   border-radius: 6px;
-  border: 2px solid #FFD700; /* Dourado refinado */
-  background: #1C1C1C;
+  background: #ffffff;
   color: white;
   font-size: 1rem;
   cursor: pointer;
+  color: #000;
 
   &:focus {
     outline: none;
-    border-color: #E6C300;
   }
 `;
 

@@ -15,6 +15,12 @@ export const AsideContainer = styled.aside`
   transition: left 0.3s ease;
 `;
 
+export const DropdownContainer = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+
 
 export const AsideMenu = styled.ul`
   list-style: none;
@@ -96,55 +102,30 @@ export const AsideItem = styled.li`
 `;
 
 
-export const DropdownMenu = styled.ul`
+export const DropdownMenu = styled.div`
   position: absolute;
   top: 100%;
-  left: 0;
-  background: #ffffff; /* Fundo branco */
-  border-radius: 12px; /* Bordas arredondadas */
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra suave */
-  padding: 10px;
-  list-style: none;
+  left: 0px;
+  width: 100%;
+  background: white;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Espaçamento entre itens */
+  z-index: 10;
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: 12px; /* Espaço entre ícone e texto */
-    padding: 12px 15px;
-    border-radius: 8px; /* Bordas arredondadas */
-    color: #ffffff; /* Texto branco */
-    font-weight: bold;
-    font-size: 1.1rem; /* Texto maior */
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.3s ease;
-
-    /* Cor de fundo dinâmica */
-    background: ${(props) => props.bgColor || "#0056b3"};
+  a {
+    padding: 10px 15px;
+    text-decoration: none;
+    color: black;
+    font-size: 14px;
+    transition: background 0.3s;
 
     &:hover {
-      transform: scale(1.05); /* Leve aumento no hover */
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra no hover */
-    }
-
-    a {
-      text-decoration: none;
-      color: inherit; /* Herda a cor do texto */
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    svg {
-      font-size: 2.2rem; /* Ícones grandes */
+      background: #f0f0f0;
     }
   }
 `;
-
-
-
 
 export const HeaderContainer = styled.header`
   position: fixed;

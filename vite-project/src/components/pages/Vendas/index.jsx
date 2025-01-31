@@ -40,6 +40,11 @@ import {
 } from '../../../styles/utils'
 
 const PDV = () => {
+
+
+  const operatorNumber = localStorage.getItem("operador_id");
+  const operatorName = localStorage.getItem("operador_nome");
+
   const [selectedItems, setSelectedItems] = useState([]); // Itens selecionados para exclusão
   const [isCancelItemModalOpen, setIsCancelItemModalOpen] = useState(false); // Controle do modal de cancelamento
   const [cancelSearch, setCancelSearch] = useState(""); // Pesquisa no modal de cancelamento
@@ -79,8 +84,6 @@ const PDV = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isConfirmCancelSaleOpen, setIsConfirmCancelSaleOpen] = useState(false);
   const [isConfirmCancelItemOpen, setIsConfirmCancelItemOpen] = useState(false);
-  const operatorNumber = "00123"; // Número do operador (exemplo)
-  const operatorName = "João Silva"; // Nome do operador (exemplo)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -262,6 +265,9 @@ const PDV = () => {
       setPaymentAmount(""); // Reseta o valor de pagamento atual
       showMessage("Venda cancelada com sucesso!", "success");
       closeConfirmCancelSaleModal();
+
+      // 🔴 CORRIGIDO: Passando um objeto válido para setHighlightedProduct
+      setHighlightedProduct({ nome: "Nenhum produto selecionado" });
     }
   };
 
@@ -279,7 +285,7 @@ const PDV = () => {
               ? {
                 ...item,
                 quantity: item.quantity + 1, // Incrementa a quantidade em 1
-                total: item.total + product.preco_venda, // Atualiza o total
+                total: Number(item.total) + Number(product.preco_venda), // Converte para número e soma corretamente
               }
               : item
           );
@@ -289,7 +295,7 @@ const PDV = () => {
             {
               ...product,
               quantity: 1,
-              total: product.preco_venda,
+              total: Number(product.preco_venda), // Garante que seja um número
             },
           ];
         }
@@ -300,12 +306,12 @@ const PDV = () => {
         setHighlightedProduct({
           ...product,
           quantity: 1,
-          total: product.preco_venda,
+          total: Number(product.preco_venda),
         });
 
         // Atualiza o total geral
         setTotalGeneral(
-          updatedCart.reduce((sum, item) => sum + (item.finalTotal || item.total), 0)
+          updatedCart.reduce((sum, item) => sum + Number(item.finalTotal || item.total), 0)
         );
 
         // Limpa campos de entrada
@@ -317,6 +323,7 @@ const PDV = () => {
       }
     }
   };
+
 
   const addToCart = () => {
     if (!highlightedProduct || !highlightedProduct.id) {
@@ -434,48 +441,12 @@ const PDV = () => {
           <ModalOverlay>
             <SettingsModal>
               <h2>Configurações do PDV</h2>
-
-              <SettingsLabel>Método de Pagamento Padrão:</SettingsLabel>
-              <SettingsSelect
-                value={defaultPaymentMethod}
-                onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-              >
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                <option value="Cartão de Débito">Cartão de Débito</option>
-                <option value="Pix">Pix</option>
-              </SettingsSelect>
-
-              <SettingsLabel>Teclado Virtual:</SettingsLabel>
-              <SettingsCheckbox
-                type="checkbox"
-                checked={virtualKeyboard}
-                onChange={() => setVirtualKeyboard(!virtualKeyboard)}
-              /> Ativar
-
-              <SettingsLabel>Som de Alerta:</SettingsLabel>
-              <SettingsCheckbox
-                type="checkbox"
-                checked={alertSound}
-                onChange={() => setAlertSound(!alertSound)}
-              /> Ativar
-
               <SettingsLabel>Impressão Automática de Recibo:</SettingsLabel>
               <SettingsCheckbox
                 type="checkbox"
                 checked={autoPrint}
                 onChange={() => setAutoPrint(!autoPrint)}
               /> Ativar
-
-              <SettingsLabel>Layout do PDV:</SettingsLabel>
-              <SettingsSelect
-                value={pdvLayout}
-                onChange={(e) => setPdvLayout(e.target.value)}
-              >
-                <option value="Padrão">Padrão</option>
-                <option value="Compacto">Compacto</option>
-                <option value="Tela Cheia">Tela Cheia</option>
-              </SettingsSelect>
 
               <SettingsButton onClick={() => setIsSettingsModalOpen(false)}>
                 Salvar Configurações
@@ -518,21 +489,68 @@ const PDV = () => {
 
 
           <IconButtonGroup>
-            <IconButton onClick={() => setIsDiscountModalOpen(true)}>
+            <IconButton
+              title="Aplicar desconto no item"
+              style={{ backgroundColor: "#2196F3", color: "white" }}
+              onClick={() => setIsDiscountModalOpen(true)}
+            >
               <FaTag />
             </IconButton>
-            <IconButton onClick={() => setIsTotalDiscountModalOpen(true)}>
+
+            <IconButton
+              title="Aplicar desconto no total"
+              style={{ backgroundColor: "#4CAF50", color: "white" }}
+              onClick={() => setIsTotalDiscountModalOpen(true)}
+            >
               <FaTags />
             </IconButton>
 
-            <IconButton $bgcolor="#FF9800" onClick={addToCart}><FaShoppingCart /></IconButton>
-            <IconButton onClick={() => setIsProductModalOpen(true)}><FaSearch /></IconButton>
-            <IconButton onClick={() => openPaymentModal()}><FaMoneyBillWave /></IconButton>
-            <IconButton onClick={openConfirmCancelSaleModal} style={{ backgroundColor: "red" }}><FaTimes /></IconButton>
-            <IconButton onClick={() => setIsCancelItemModalOpen(true)} disabled={cart.length === 0} style={{ backgroundColor: cart.length > 0 ? "#ffa500" : "red", color: "white", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}>
+            <IconButton
+              title="Adicionar ao carrinho"
+              style={{ backgroundColor: "#FF9800", color: "white" }}
+              onClick={addToCart}
+            >
+              <FaShoppingCart />
+            </IconButton>
+
+            <IconButton
+              title="Buscar produtos"
+              style={{ backgroundColor: "#673AB7", color: "white" }}
+              onClick={() => setIsProductModalOpen(true)}
+            >
+              <FaSearch />
+            </IconButton>
+
+            <IconButton
+              title="Finalizar compra"
+              style={{ backgroundColor: "#009688", color: "white" }}
+              onClick={() => openPaymentModal()}
+            >
+              <FaMoneyBillWave />
+            </IconButton>
+
+            <IconButton
+              title="Cancelar venda"
+              style={{ backgroundColor: "red", color: "white" }}
+              onClick={openConfirmCancelSaleModal}
+            >
+              <FaTimes />
+            </IconButton>
+
+            <IconButton
+              title="Cancelar itens selecionados"
+              style={{
+                backgroundColor: cart.length > 0 ? "#FFA500" : "red",
+                color: "white",
+                cursor: cart.length > 0 ? "pointer" : "not-allowed"
+              }}
+              disabled={cart.length === 0}
+              onClick={() => setIsCancelItemModalOpen(true)}
+            >
               <FaUndo />
             </IconButton>
           </IconButtonGroup>
+
 
         </LeftSection>
         <RightSection>
@@ -584,19 +602,19 @@ const PDV = () => {
               <h2>Aplicar Desconto no Item</h2>
               <InputGroup>
                 <label>Selecionar Produto:</label>
-                <select onChange={(e) => setSelectedItem(e.target.value)}>
+                <SettingsSelect onChange={(e) => setSelectedItem(e.target.value)}>
                   <option value="">Escolha um produto</option>
                   {cart.map((item) => (
                     <option key={item.id} value={item.id}>{item.nome}</option>
                   ))}
-                </select>
+                </SettingsSelect>
               </InputGroup>
               <InputGroup>
                 <label>Tipo de Desconto:</label>
-                <select onChange={(e) => setDiscountType(e.target.value)}>
+                <SettingsSelect onChange={(e) => setDiscountType(e.target.value)}>
                   <option value="percentage">Porcentagem</option>
                   <option value="value">Valor Fixo</option>
-                </select>
+                </SettingsSelect>
               </InputGroup>
               <InputGroup>
                 <label>Valor do Desconto:</label>
@@ -616,10 +634,10 @@ const PDV = () => {
               <h2>Aplicar Desconto no Total</h2>
               <InputGroup>
                 <label>Tipo de Desconto:</label>
-                <select onChange={(e) => setDiscountType(e.target.value)}>
+                <SettingsSelect onChange={(e) => setDiscountType(e.target.value)}>
                   <option value="percentage">Porcentagem</option>
                   <option value="value">Valor Fixo</option>
-                </select>
+                </SettingsSelect>
               </InputGroup>
               <InputGroup>
                 <label>Valor do Desconto:</label>
@@ -879,25 +897,35 @@ const PDV = () => {
                   }}
                 />
               </div>
+              <IconButtonGroup>
               <Button
+                title="Confirmar pagamento parcial"
+                style={{ backgroundColor: "#4CAF50", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
                 onClick={handlePartialPayment}
               >
+                <FaCheckCircle size={16} />
                 Confirmar Pagamento
               </Button>
+
               <Button
+                title="Finalizar compra"
+                style={{ backgroundColor: "#2196F3", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
                 onClick={finalizeSale}
                 disabled={remainingTotal > 0}
               >
+                <FaMoneyBillWave size={16} />
                 Finalizar Compra
               </Button>
+
               <Button
+                title="Cancelar pagamento"
+                style={{ backgroundColor: "red", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
                 onClick={cancelPayment}
-                style={{
-                  backgroundColor: "red",
-                }}
               >
+                <FaTimes size={16} />
                 Cancelar Pagamento
               </Button>
+              </IconButtonGroup>
 
               {/* Histórico de Pagamentos */}
               {paymentHistory.length > 0 && (

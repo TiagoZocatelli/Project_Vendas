@@ -1,12 +1,19 @@
+import datetime
 from flask import Flask, request, jsonify
 from psycopg2 import errors  
 import psycopg2
 import base64
 from decimal import Decimal
+from flask_jwt_extended import JWTManager, create_access_token
+import jwt
 from flask_cors import CORS
+import bcrypt
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})  # 🔹 Permite requisições apenas do frontend
+app.config["JWT_SECRET_KEY"] = "seu_segredo_aqui"
+jwt = JWTManager(app)
+SECRET_KEY = "seu_segredo_super_secreto"
 
 # Configuração do banco de dados
 DB_CONFIG = {
@@ -24,6 +31,433 @@ def get_db_connection():
     except Exception as e:
         print(f"Erro ao conectar ao banco: {e}")
         return None
+
+# 🔹 Rota de Login do PDV por Código (id) e Senha
+@app.route("/loginPDV", methods=["POST"])
+def loginPDV():
+    data = request.get_json()
+    codigo = data.get("codigo")  # 🔹 Recebe o ID (Código do Operador)
+    senha = data.get("senha")
+
+    if not codigo or not senha:
+        return jsonify({"error": "Código e senha são obrigatórios!"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Erro ao conectar ao banco de dados!"}), 500
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, nome, senha, cargo FROM operadores WHERE id = %s AND ativo = TRUE", (codigo,))
+            operador = cur.fetchone()
+
+        if not operador:
+            return jsonify({"error": "Operador não encontrado ou inativo!"}), 401
+
+        operador_id, nome, senha_hash, cargo = operador
+
+        # 🔹 Verifica a senha criptografada (se armazenada com bcrypt)
+        if not bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
+            return jsonify({"error": "Senha incorreta!"}), 401
+
+        # 🔹 Gera token JWT
+        access_token = create_access_token(identity={"id": operador_id, "nome": nome, "cargo": cargo})
+
+        return jsonify({
+            "message": "Login realizado com sucesso!",
+            "operador": {
+                "id": operador_id,
+                "nome": nome,
+                "cargo": cargo
+            },
+            "token": access_token
+        }), 200
+    finally:
+        conn.close()
+# ------------------------------
+# 🚀 CRUD de Operadores
+# ------------------------------
+@app.route("/operadores", methods=["GET"])
+def listar_operadores():
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT o.id, o.nome, o.cpf, o.email, o.cargo, f.nome as filial 
+            FROM operadores o 
+            LEFT JOIN filiais f ON o.filial_id = f.id
+            ORDER BY o.nome
+        """)
+        results = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
+    
+    conn.close()
+    return jsonify([dict(zip(colnames, row)) for row in results])
+
+
+@app.route("/operadores", methods=["POST"])
+def criar_operador():
+    data = request.get_json()
+    
+    if not all(k in data for k in ["nome", "cpf", "email", "senha", "cargo", "filial_id"]):
+        return jsonify({"error": "Todos os campos são obrigatórios!"}), 400
+
+    # 🔹 Criptografa a senha antes de salvar no banco
+    senha_hash = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO operadores (nome, cpf, email, senha, cargo, filial_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+                (data["nome"], data["cpf"], data["email"], senha_hash, data["cargo"], data["filial_id"])
+            )
+            operador_id = cur.fetchone()[0]
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Erro ao cadastrar operador: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+    return jsonify({"message": "Operador criado com sucesso!", "id": operador_id}), 201
+
+@app.route("/operadores/<int:id>", methods=["PUT"])
+def atualizar_operador(id):
+    data = request.get_json()
+    
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        if "senha" in data and data["senha"]:
+            senha_hash = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+            cur.execute(
+                "UPDATE operadores SET nome=%s, cpf=%s, email=%s, senha=%s, cargo=%s, filial_id=%s WHERE id=%s",
+                (data["nome"], data["cpf"], data["email"], senha_hash, data["cargo"], data["filial_id"], id)
+            )
+        else:
+            cur.execute(
+                "UPDATE operadores SET nome=%s, cpf=%s, email=%s, cargo=%s, filial_id=%s WHERE id=%s",
+                (data["nome"], data["cpf"], data["email"], data["cargo"], data["filial_id"], id)
+            )
+        
+        conn.commit()
+    
+    conn.close()
+    return jsonify({"message": "Operador atualizado com sucesso!"})
+
+# 📌 Endpoint de Login
+@app.route("/login", methods=["POST"])
+def loginUsers():
+    data = request.get_json()
+
+    if not data or not data.get("login") or not data.get("senha"):
+        return jsonify({"error": "Nome ou email e senha são obrigatórios!"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 🔹 Busca o usuário pelo nome OU email
+            cur.execute(
+                "SELECT id, nome, email, senha FROM usuarios WHERE email = %s OR nome = %s", 
+                (data["login"], data["login"])
+            )
+            user = cur.fetchone()
+
+            if not user:
+                return jsonify({"error": "Usuário não encontrado!"}), 401
+
+            user_id, nome, email, senha_hash = user
+
+            # 🔹 Verifica se a senha está corretamente hasheada
+            if senha_hash is None:
+                return jsonify({"error": "Senha não encontrada para este usuário. Contate o suporte."}), 401
+
+            # 🔹 Verificação da senha com bcrypt
+            if bcrypt.checkpw(data["senha"].encode("utf-8"), senha_hash.encode("utf-8")):
+                # Criando token JWT
+                token = create_access_token(identity={"user_id": user_id, "nome": nome, "email": email})
+                return jsonify({"message": "Login realizado com sucesso!", "token": token, "user": {"id": user_id, "nome": nome, "email": email}})
+            else:
+                return jsonify({"error": "Senha incorreta!"}), 401
+    finally:
+        conn.close()
+        
+@app.route("/operadores/<int:id>", methods=["DELETE"])
+def deletar_operador(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM operadores WHERE id = %s", (id,))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Operador deletado!"})
+
+# 📌 1️⃣ Criar Usuário (POST)
+@app.route("/usuarios", methods=["POST"])
+def criar_usuario():
+    data = request.get_json()
+    
+    # Validação dos dados recebidos
+    if not all(k in data for k in ["nome", "cpf", "email", "senha", "cargo", "filial_id", "nivel_acesso_id"]):
+        return jsonify({"error": "Todos os campos são obrigatórios!"}), 400
+
+    senha_hash = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO usuarios (nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                """,
+                (data["nome"], data["cpf"], data["email"], senha_hash, data["cargo"], data["filial_id"], data["nivel_acesso_id"])
+            )
+            usuario_id = cur.fetchone()[0]
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Erro ao cadastrar usuário: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+    return jsonify({"message": "Usuário criado com sucesso!", "id": usuario_id}), 201
+
+
+# 📌 2️⃣ Buscar Usuários (GET)
+@app.route("/usuarios", methods=["GET"])
+def listar_usuarios():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT u.id, u.nome, u.cpf, u.email, u.cargo, f.nome AS filial, n.nivel
+                FROM usuarios u
+                LEFT JOIN filiais f ON u.filial_id = f.id
+                LEFT JOIN niveis_acesso n ON u.nivel_acesso_id = n.id
+                ORDER BY u.id
+            """)
+            usuarios = cur.fetchall()
+            
+            resultado = [
+                {
+                    "id": u[0], "nome": u[1], "cpf": u[2], "email": u[3],
+                    "cargo": u[4], "filial": u[5], "nivel_acesso": u[6]
+                }
+                for u in usuarios
+            ]
+    finally:
+        conn.close()
+    
+    return jsonify(resultado), 200
+
+
+# 📌 3️⃣ Buscar Usuário por ID (GET)
+@app.route("/usuarios/<int:usuario_id>", methods=["GET"])
+def obter_usuario(usuario_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT u.id, u.nome, u.cpf, u.email, u.cargo, f.nome AS filial, n.nivel
+                FROM usuarios u
+                LEFT JOIN filiais f ON u.filial_id = f.id
+                LEFT JOIN niveis_acesso n ON u.nivel_acesso_id = n.id
+                WHERE u.id = %s
+            """, (usuario_id,))
+            usuario = cur.fetchone()
+            
+            if usuario:
+                resultado = {
+                    "id": usuario[0], "nome": usuario[1], "cpf": usuario[2], 
+                    "email": usuario[3], "cargo": usuario[4], 
+                    "filial": usuario[5], "nivel_acesso": usuario[6]
+                }
+                return jsonify(resultado), 200
+            else:
+                return jsonify({"error": "Usuário não encontrado"}), 404
+    finally:
+        conn.close()
+
+
+# 📌 4️⃣ Atualizar Usuário (PUT)
+@app.route("/usuarios/<int:usuario_id>", methods=["PUT"])
+def atualizar_usuario(usuario_id):
+    data = request.get_json()
+
+    campos_permitidos = ["nome", "cpf", "email", "senha", "cargo", "filial_id", "nivel_acesso_id"]
+    campos_atualizar = {k: v for k, v in data.items() if k in campos_permitidos}
+
+    if not campos_atualizar:
+        return jsonify({"error": "Nenhum campo válido para atualização!"}), 400
+
+    if "senha" in campos_atualizar:
+        campos_atualizar["senha"] = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    set_clause = ", ".join(f"{k} = %s" for k in campos_atualizar.keys())
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE usuarios SET {set_clause} WHERE id = %s RETURNING id",
+                (*campos_atualizar.values(), usuario_id)
+            )
+            if cur.rowcount == 0:
+                return jsonify({"error": "Usuário não encontrado!"}), 404
+            conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"message": "Usuário atualizado com sucesso!"}), 200
+
+
+# 📌 5️⃣ Deletar Usuário (DELETE)
+@app.route("/usuarios/<int:usuario_id>", methods=["DELETE"])
+def deletar_usuario(usuario_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM usuarios WHERE id = %s RETURNING id", (usuario_id,))
+            if cur.rowcount == 0:
+                return jsonify({"error": "Usuário não encontrado!"}), 404
+            conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"message": "Usuário deletado com sucesso!"}), 200
+
+# ------------------------------
+# 🚀 CRUD de Ofertas
+# ------------------------------
+@app.route("/ofertas", methods=["GET"])
+def listar_ofertas():
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM ofertas ORDER BY data_inicio DESC")
+        results = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
+    conn.close()
+    return jsonify([dict(zip(colnames, row)) for row in results])
+
+
+@app.route("/ofertas", methods=["POST"])
+def criar_oferta():
+    data = request.get_json()
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO ofertas (produto_id, tipo, valor, data_inicio, data_fim) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (data["produto_id"], data["tipo"], data["valor"], data["data_inicio"], data["data_fim"]))
+        oferta_id = cur.fetchone()[0]
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Oferta criada!", "id": oferta_id})
+
+
+@app.route("/ofertas/<int:id>", methods=["PUT"])
+def atualizar_oferta(id):
+    data = request.get_json()
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("UPDATE ofertas SET tipo=%s, valor=%s, data_inicio=%s, data_fim=%s WHERE id=%s",
+                    (data["tipo"], data["valor"], data["data_inicio"], data["data_fim"], id))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Oferta atualizada!"})
+
+
+@app.route("/ofertas/<int:id>", methods=["DELETE"])
+def cancelar_oferta(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM ofertas WHERE id = %s", (id,))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Oferta cancelada!"})
+
+# ------------------------------
+# 🚀 CRUD de Pedidos
+# ------------------------------
+@app.route("/pedidos", methods=["GET"])
+def listar_pedidos():
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM pedidos ORDER BY data_pedido DESC")
+        results = cur.fetchall()
+        colnames = [desc[0] for desc in cur.description]
+    conn.close()
+    return jsonify([dict(zip(colnames, row)) for row in results])
+
+
+@app.route("/pedidos", methods=["POST"])
+def criar_pedido():
+    data = request.get_json()
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO pedidos (cliente, operador_id, total) VALUES (%s, %s, %s) RETURNING id",
+                    (data["cliente"], data["operador_id"], data["total"]))
+        pedido_id = cur.fetchone()[0]
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Pedido criado!", "id": pedido_id})
+
+
+@app.route("/pedidos/<int:id>", methods=["PUT"])
+def atualizar_pedido(id):
+    data = request.get_json()
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("UPDATE pedidos SET cliente=%s, operador_id=%s, total=%s WHERE id=%s",
+                    (data["cliente"], data["operador_id"], data["total"], id))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Pedido atualizado!"})
+
+
+@app.route("/pedidos/<int:id>", methods=["DELETE"])
+def cancelar_pedido(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM pedidos WHERE id = %s", (id,))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Pedido cancelado!"})
+
+# ------------------------------
+# 🚀 CRUD de Vendas
+# ------------------------------
+@app.route("/vendas", methods=["POST"])
+def criar_venda():
+    data = request.get_json()
+    pedido_id = data.get("pedido_id")
+    operador_id = data["operador_id"]
+    cliente = data.get("cliente", "Cliente Não Identificado")
+    itens = data["itens"]
+
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        total_venda = sum((item["quantidade"] * item["preco_unitario"]) - item["desconto"] for item in itens)
+
+        cur.execute("INSERT INTO vendas (pedido_id, operador_id, cliente, total) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (pedido_id, operador_id, cliente, total_venda))
+        venda_id = cur.fetchone()[0]
+
+        for item in itens:
+            cur.execute("INSERT INTO vendas_itens (venda_id, produto_id, quantidade, preco_unitario, desconto, total) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (venda_id, item["produto_id"], item["quantidade"], item["preco_unitario"], item["desconto"], (item["quantidade"] * item["preco_unitario"]) - item["desconto"]))
+
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Venda registrada!", "venda_id": venda_id})
+
+
+@app.route("/vendas/<int:id>", methods=["DELETE"])
+def cancelar_venda(id):
+    conn = get_db_connection()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM vendas WHERE id = %s", (id,))
+        conn.commit()
+    conn.close()
+    return jsonify({"message": "Venda cancelada!"})
+
 
 @app.route("/filiais", methods=["GET"])
 def listar_filiais():

@@ -31,13 +31,26 @@ import {
 } from "react-icons/fa";
 
 // Importando Link do react-router-dom
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Header = () => {
   const [isAsideOpen, setIsAsideOpen] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [userName, setUserName] = useState(localStorage.getItem("userName") || "Usuário"); // 🔹 Pega nome do usuário
+
+
+  const navigate = useNavigate();
+
+  const handleVendasClick = () => {
+    const token = localStorage.getItem("tokenPdv");
+    if (token) {
+      navigate("/vendas");
+    } else {
+      navigate("/loginPdv");
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -48,33 +61,29 @@ const Header = () => {
     return () => clearInterval(interval);
   }, []);
 
+
+  const confirmLogout = () => {
+    localStorage.removeItem("tokenUsers");
+    localStorage.removeItem("tokenPdv");
+    localStorage.removeItem("userName"); // 🔹 Remove o nome ao deslogar
+    navigate("/");
+  };
+
   return (
     <>
       {/* Menu Lateral */}
       <AsideContainer $isOpen={isAsideOpen}>
         <AsideMenu>
-          <AsideItem $bgColor="#E91E63" $hoverColor="#C2185B">
+          <AsideItem $bgColor="#E91E63" $hoverColor="#C2185B" onClick={handleVendasClick}>
             <Link to="/vendas">
               <FaChartLine />
               Vendas
             </Link>
           </AsideItem>
           <AsideItem $bgColor="#FF9800" $hoverColor="#F57C00">
-            <Link to="/produtos">
+            <Link to="/cadastros">
               <FaBox />
-              Produtos
-            </Link>
-          </AsideItem>
-          <AsideItem $bgColor="#03A9F4" $hoverColor="#0288D1">
-            <Link to="/fornecedores">
-              <FaTruck />
-              Fornecedores
-            </Link>
-          </AsideItem>
-          <AsideItem $bgColor="#9C27B0" $hoverColor="#7B1FA2">
-            <Link to="/clientes">
-              <FaUsers />
-              Clientes
+              Cadastros
             </Link>
           </AsideItem>
           <AsideItem $bgColor="#F44336" $hoverColor="#D32F2F">
@@ -100,19 +109,14 @@ const Header = () => {
           <DateTime>{currentTime.toLocaleString()}</DateTime>
 
           {/* Saudações ao Usuário */}
-          <UserGreeting>Bem-vindo, Zokah!</UserGreeting>
+          <UserGreeting>Bem-vindo, {userName} !</UserGreeting>
 
           {/* Ícones e Botões */}
           <HeaderActions>
             <SettingsIcon onClick={() => setIsSettingsModalOpen(true)}>
               <FaCog />
             </SettingsIcon>
-            <ProfileButton>
-              <Link to="/filiais">
-                <FaUsers /> Filiais
-              </Link>
-            </ProfileButton>
-            <LogoutButton>
+            <LogoutButton onClick={confirmLogout}>
               <FaSignInAlt /> Sair
             </LogoutButton>
           </HeaderActions>
