@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, {keyframes } from "styled-components";
 
 export const Container = styled.div`
   display: flex;
@@ -383,6 +383,59 @@ export const OperatorInfo = styled.div`
     padding: 8px 0;
   }
 `;
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Animação de saída (fade-out)
+const fadeOut = keyframes`
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+`;
+
+// Estilização da Notificação
+export const Notification = styled.div`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: ${({ type }) =>
+    type === "success"
+      ? "linear-gradient(145deg, #4caf50, #81c784)" // Verde para sucesso
+      : "linear-gradient(145deg, #ff6347, #ff867f)"}; // Vermelho para erro
+  color: #ffffff;
+  padding: 15px 25px;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  font-size: 1rem;
+  font-weight: bold;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: ${fadeIn} 0.5s ease, ${fadeOut} 0.5s ease 3s forwards;
+  min-width: 250px;
+  max-width: 400px;
+  text-align: center;
+  justify-content: center;
+
+  svg {
+    font-size: 1.5rem;
+  }
+`;
+
+
 
 export const SettingsIcon = styled.div`
   position: absolute;

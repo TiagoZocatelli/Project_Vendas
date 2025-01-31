@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
   Container,
   LeftSection,
@@ -24,13 +23,21 @@ import {
   SettingsInput,
   SettingsCheckbox,
   SettingsButton,
+  Notification
 } from "./styles";
-import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog } from "react-icons/fa";
+import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import { CategorySection } from "./styles";
 import { ProductGrid } from "./styles";
 import { CloseButton } from "./styles";
 import { DivDesc } from "./styles";
 import api from "../../../api";
+import {
+  ConfirmModalContainer,
+  ConfirmCancelButton,
+  ConfirmButton,
+  ConfirmModalContent,
+  ConfirmButtonContainer
+} from '../../../styles/utils'
 
 const PDV = () => {
   const [selectedItems, setSelectedItems] = useState([]); // Itens selecionados para exclusão
@@ -39,11 +46,11 @@ const PDV = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState("Dinheiro");
-  const [timeout, setTimeout] = useState(5);
   const [virtualKeyboard, setVirtualKeyboard] = useState(false);
   const [alertSound, setAlertSound] = useState(true);
   const [autoPrint, setAutoPrint] = useState(false);
   const [pdvLayout, setPdvLayout] = useState("Padrão");
+  const [message, setMessage] = useState("");
 
   const [barcode, setBarcode] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -70,9 +77,8 @@ const PDV = () => {
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [isTotalDiscountModalOpen, setIsTotalDiscountModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  
-
+  const [isConfirmCancelSaleOpen, setIsConfirmCancelSaleOpen] = useState(false);
+  const [isConfirmCancelItemOpen, setIsConfirmCancelItemOpen] = useState(false);
   const operatorNumber = "00123"; // Número do operador (exemplo)
   const operatorName = "João Silva"; // Nome do operador (exemplo)
 
@@ -90,7 +96,7 @@ const PDV = () => {
         const response = await api.get("/produtos"); // Altere para o endpoint correto
         setProducts(response.data);
       } catch (error) {
-        console.error("Erro ao carregar produtos:", error);
+        showMessage(`Erro ao carregar produtos: ${error.message}`, "error");
       }
     };
     fetchProducts();
@@ -105,6 +111,13 @@ const PDV = () => {
       setTotalGeneral(0);
     }
   }, [cart]);
+
+  const openConfirmCancelSaleModal = () => setIsConfirmCancelSaleOpen(true);
+  const closeConfirmCancelSaleModal = () => setIsConfirmCancelSaleOpen(false);
+
+  const openConfirmCancelItemModal = () => setIsConfirmCancelItemOpen(true);
+  const closeConfirmCancelItemModal = () => setIsConfirmCancelItemOpen(false);
+
 
   const applyItemDiscount = () => {
     if (!selectedItem) return;
@@ -122,6 +135,14 @@ const PDV = () => {
     }));
 
     setIsDiscountModalOpen(false);
+  };
+
+  const showMessage = (text, type = "success") => {
+    setMessage({ text, type });
+
+    setTimeout(() => {
+      setMessage(null); // Reseta a notificação após 3 segundos
+    }, 5000);
   };
 
   const applyTotalDiscount = () => {
@@ -143,31 +164,30 @@ const PDV = () => {
   };
 
   const confirmCancelItems = () => {
-    const updatedCart = cart.filter(
-      (product) => !selectedItems.includes(product.id)
-    );
-    setCart(updatedCart);
-    setTotalGeneral(
-      updatedCart.reduce((sum, product) => sum + product.total, 0)
-    ); // Recalcula o total geral
-    setSelectedItems([]); // Reseta os itens selecionados
-    setIsCancelItemModalOpen(false); // Fecha o modal
-    alert("Itens removidos com sucesso!");
+    if (cart.length === 1) {
+      showMessage("Existe apenas 1 item no carrinho necessario cancelar venda", "error");
+      return
+    } else {
+      const updatedCart = cart.filter(product => !selectedItems.includes(product.id));
+      setCart(updatedCart);
+      setTotalGeneral(updatedCart.reduce((sum, product) => sum + product.total, 0)); // Recalcula o total geral
+      setSelectedItems([]); // Reseta os itens selecionados
+      showMessage("Itens removidos com sucesso!", "success");
+      closeConfirmCancelItemModal();
+    }
   };
 
   const finalizeSale = () => {
     if (remainingTotal > 0) {
-      alert(
-        "Ainda há um saldo restante. Finalize os pagamentos antes de concluir."
-      );
+      showMessage(
+        "Ainda há um saldo restante. Finalize os pagamentos antes de concluir.", "error");
       return;
     }
 
-    alert(
+    showMessage(
       `Compra finalizada com sucesso!\nMétodos de Pagamento:\n${paymentHistory
         .map((p) => `${p.method}: R$ ${p.amount.toFixed(2)}`)
-        .join("\n")}`
-    );
+        .join("\n")}`, "success");
     setCart([]);
     setTotalGeneral(0);
     setRemainingTotal(0);
@@ -179,7 +199,7 @@ const PDV = () => {
 
   const handlePartialPayment = () => {
     if (paymentAmount <= 0) {
-      alert("Insira um valor válido para pagamento.");
+      showMessage("Insira um valor válido para pagamento.", "error");
       return;
     }
 
@@ -210,7 +230,7 @@ const PDV = () => {
 
   const openPaymentModal = () => {
     if (cart.length === 0) {
-      alert("Adicione itens ao carrinho antes de totalizar a compra.");
+      showMessage("Adicione itens ao carrinho antes de totalizar a compra", "error");
       return;
     }
 
@@ -228,9 +248,9 @@ const PDV = () => {
     setTotalItem(quantity * unitPrice);
   };
 
-  const cancelSale = () => {
+  const confirmCancelSale = () => {
     if (cart.length === 0) {
-      alert("Adicione itens ao carrinho antes de cancelar a compra.");
+      showMessage("Adicione itens ao carrinho antes de cancelar a compra.", "error");
     } else {
       setCart([]); // Limpa o carrinho
       setTotalGeneral(0); // Reseta o total geral
@@ -240,26 +260,27 @@ const PDV = () => {
       setPaymentHistory([]); // Limpa o histórico de pagamentos
       setPaymentMethod(""); // Reseta o método de pagamento
       setPaymentAmount(""); // Reseta o valor de pagamento atual
-      alert("Venda cancelada com sucesso!"); // Mensagem de confirmação
+      showMessage("Venda cancelada com sucesso!", "success");
+      closeConfirmCancelSaleModal();
     }
   };
 
   const handleBarcodeEnter = (e) => {
     if (e.key === "Enter") {
       const product = products.find((p) => p.codigo_barras === barcode);
-  
+
       if (product) {
         const existingProduct = cart.find((item) => item.id === product.id);
-  
+
         let updatedCart;
         if (existingProduct) {
           updatedCart = cart.map((item) =>
             item.id === product.id
               ? {
-                  ...item,
-                  quantity: item.quantity + 1, // Incrementa a quantidade em 1
-                  total: item.total + product.preco_venda, // Atualiza o total
-                }
+                ...item,
+                quantity: item.quantity + 1, // Incrementa a quantidade em 1
+                total: item.total + product.preco_venda, // Atualiza o total
+              }
               : item
           );
         } else {
@@ -272,48 +293,48 @@ const PDV = () => {
             },
           ];
         }
-  
+
         setCart(updatedCart);
-  
+
         // Atualiza o produto destacado IMEDIATAMENTE
         setHighlightedProduct({
           ...product,
           quantity: 1,
           total: product.preco_venda,
         });
-  
+
         // Atualiza o total geral
         setTotalGeneral(
           updatedCart.reduce((sum, item) => sum + (item.finalTotal || item.total), 0)
         );
-  
+
         // Limpa campos de entrada
         setBarcode("");
         setQuantity(1);
       } else {
-        alert("Produto não encontrado.");
+        showMessage("Produto não encontrado.", "error");
         setBarcode("");
       }
     }
   };
-  
+
   const addToCart = () => {
     if (!highlightedProduct || !highlightedProduct.id) {
-      alert("Selecione um produto antes de adicionar.");
+      showMessage("Selecione um produto antes de adicionar.", "error");
       return;
     }
-  
+
     const existingProduct = cart.find((item) => item.id === highlightedProduct.id);
-  
+
     let updatedCart;
     if (existingProduct) {
       updatedCart = cart.map((item) =>
         item.id === highlightedProduct.id
           ? {
-              ...item,
-              quantity: item.quantity + quantity, // Incrementa a quantidade
-              total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
-            }
+            ...item,
+            quantity: item.quantity + quantity, // Incrementa a quantidade
+            total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
+          }
           : item
       );
     } else {
@@ -326,34 +347,23 @@ const PDV = () => {
         },
       ];
     }
-  
+
     setCart(updatedCart);
     setTotalGeneral(
       updatedCart.reduce((sum, item) => sum + (item.finalTotal || item.total), 0)
     );
     setRemainingTotal(totalGeneral - totalPaid); // Ajusta o valor restante com base no total pago
-  
+
     // **Manter o último produto adicionado visível**
     setHighlightedProduct({
       ...highlightedProduct,
       quantity,
       total: highlightedProduct.preco_venda * quantity,
     });
-  
+
     // **Não resetar `highlightedProduct`, apenas limpar os campos de input**
     setBarcode("");
     setQuantity(1);
-  };
-  
-  
-
-  const resetFields = () => {
-    setBarcode("");
-    setQuantity(1);
-    setUnitPrice(0);
-    setTotalItem(0);
-    // Redefine para o produto padrão
-    setHighlightedProduct({ nome: "Nenhum produto selecionado" });
   };
 
   const cancelPayment = () => {
@@ -364,18 +374,48 @@ const PDV = () => {
     setIsPaymentModalOpen(false); // Fecha o modal
   };
 
-  const removeFromCart = (id) => {
-    const item = cart.find((product) => product.id === id);
-    setCart(cart.filter((product) => product.id !== id));
-    setTotalGeneral(totalGeneral - item.total);
-  };
-
-  const filteredProducts = products.filter((product) =>
-    product.nome.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <>
+
+      {/* Modal para Confirmar Cancelamento da Venda */}
+      {isConfirmCancelSaleOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar Cancelamento da Venda</h2>
+            <p>Tem certeza de que deseja cancelar toda a venda?</p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={confirmCancelSale}>Sim, Cancelar Venda</ConfirmButton>
+              <ConfirmCancelButton onClick={closeConfirmCancelSaleModal}>Cancelar</ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
+
+      {/* Modal para Confirmar Cancelamento de Itens */}
+      {isConfirmCancelItemOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar Cancelamento de Itens</h2>
+            <p>Tem certeza de que deseja remover os itens selecionados?</p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={confirmCancelItems}>Sim, Remover Itens</ConfirmButton>
+              <ConfirmCancelButton onClick={closeConfirmCancelItemModal}>Cancelar</ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
+
+      {message && (
+        <Notification type={message.type}>
+          {message.type === "success" ? (
+            <FaCheckCircle size={20} />
+          ) : (
+            <FaExclamationCircle size={20} />
+          )}
+          {message.text}
+        </Notification>
+      )}
       <DivDesc>
         {highlightedProduct && (
           <HighlightedProduct>
@@ -389,70 +429,60 @@ const PDV = () => {
       </SettingsIcon>
 
       <Container>
+        {/* Modal de Configuração */}
+        {isSettingsModalOpen && (
+          <ModalOverlay>
+            <SettingsModal>
+              <h2>Configurações do PDV</h2>
 
-    
-       {/* Modal de Configuração */}
-       {isSettingsModalOpen && (
-        <ModalOverlay>
-          <SettingsModal>
-            <h2>Configurações do PDV</h2>
+              <SettingsLabel>Método de Pagamento Padrão:</SettingsLabel>
+              <SettingsSelect
+                value={defaultPaymentMethod}
+                onChange={(e) => setDefaultPaymentMethod(e.target.value)}
+              >
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Pix">Pix</option>
+              </SettingsSelect>
 
-            <SettingsLabel>Método de Pagamento Padrão:</SettingsLabel>
-            <SettingsSelect 
-              value={defaultPaymentMethod}
-              onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-            >
-              <option value="Dinheiro">Dinheiro</option>
-              <option value="Cartão de Crédito">Cartão de Crédito</option>
-              <option value="Cartão de Débito">Cartão de Débito</option>
-              <option value="Pix">Pix</option>
-            </SettingsSelect>
+              <SettingsLabel>Teclado Virtual:</SettingsLabel>
+              <SettingsCheckbox
+                type="checkbox"
+                checked={virtualKeyboard}
+                onChange={() => setVirtualKeyboard(!virtualKeyboard)}
+              /> Ativar
 
-            <SettingsLabel>Tempo de Inatividade (minutos):</SettingsLabel>
-            <SettingsInput 
-              type="number"
-              value={timeout}
-              min="1"
-              onChange={(e) => setTimeout(Number(e.target.value))}
-            />
+              <SettingsLabel>Som de Alerta:</SettingsLabel>
+              <SettingsCheckbox
+                type="checkbox"
+                checked={alertSound}
+                onChange={() => setAlertSound(!alertSound)}
+              /> Ativar
 
-            <SettingsLabel>Teclado Virtual:</SettingsLabel>
-            <SettingsCheckbox 
-              type="checkbox" 
-              checked={virtualKeyboard} 
-              onChange={() => setVirtualKeyboard(!virtualKeyboard)}
-            /> Ativar
+              <SettingsLabel>Impressão Automática de Recibo:</SettingsLabel>
+              <SettingsCheckbox
+                type="checkbox"
+                checked={autoPrint}
+                onChange={() => setAutoPrint(!autoPrint)}
+              /> Ativar
 
-            <SettingsLabel>Som de Alerta:</SettingsLabel>
-            <SettingsCheckbox 
-              type="checkbox" 
-              checked={alertSound} 
-              onChange={() => setAlertSound(!alertSound)}
-            /> Ativar
+              <SettingsLabel>Layout do PDV:</SettingsLabel>
+              <SettingsSelect
+                value={pdvLayout}
+                onChange={(e) => setPdvLayout(e.target.value)}
+              >
+                <option value="Padrão">Padrão</option>
+                <option value="Compacto">Compacto</option>
+                <option value="Tela Cheia">Tela Cheia</option>
+              </SettingsSelect>
 
-            <SettingsLabel>Impressão Automática de Recibo:</SettingsLabel>
-            <SettingsCheckbox 
-              type="checkbox" 
-              checked={autoPrint} 
-              onChange={() => setAutoPrint(!autoPrint)}
-            /> Ativar
-
-            <SettingsLabel>Layout do PDV:</SettingsLabel>
-            <SettingsSelect 
-              value={pdvLayout} 
-              onChange={(e) => setPdvLayout(e.target.value)}
-            >
-              <option value="Padrão">Padrão</option>
-              <option value="Compacto">Compacto</option>
-              <option value="Tela Cheia">Tela Cheia</option>
-            </SettingsSelect>
-
-            <SettingsButton onClick={() => setIsSettingsModalOpen(false)}>
-              Salvar Configurações
-            </SettingsButton>
-          </SettingsModal>
-        </ModalOverlay>
-      )}
+              <SettingsButton onClick={() => setIsSettingsModalOpen(false)}>
+                Salvar Configurações
+              </SettingsButton>
+            </SettingsModal>
+          </ModalOverlay>
+        )}
 
         <LeftSection>
           <h2>Informações do Produto</h2>
@@ -498,7 +528,7 @@ const PDV = () => {
             <IconButton $bgcolor="#FF9800" onClick={addToCart}><FaShoppingCart /></IconButton>
             <IconButton onClick={() => setIsProductModalOpen(true)}><FaSearch /></IconButton>
             <IconButton onClick={() => openPaymentModal()}><FaMoneyBillWave /></IconButton>
-            <IconButton onClick={cancelSale} style={{ backgroundColor: "red" }}><FaTimes /></IconButton>
+            <IconButton onClick={openConfirmCancelSaleModal} style={{ backgroundColor: "red" }}><FaTimes /></IconButton>
             <IconButton onClick={() => setIsCancelItemModalOpen(true)} disabled={cart.length === 0} style={{ backgroundColor: cart.length > 0 ? "#ffa500" : "red", color: "white", cursor: cart.length > 0 ? "pointer" : "not-allowed" }}>
               <FaUndo />
             </IconButton>
@@ -508,7 +538,7 @@ const PDV = () => {
         <RightSection>
           <TotalContainer>
             <TotalDisplay>
-              Total Geral: R$ {totalGeneral.toFixed(2)}
+              Total Geral: R$ {(Number(totalGeneral) || 0).toFixed(2)}
             </TotalDisplay>
           </TotalContainer>
           <div style={{ maxHeight: "400px", overflowY: "auto", width: "100%" }}>
@@ -532,7 +562,7 @@ const PDV = () => {
                     <td>{product.codigo_barras}</td>
                     <td>{product.nome}</td>
                     <td>{product.quantity}</td>
-                    <td>R$ {product.total.toFixed(2)}</td>
+                    <td>R$ {product.total}</td>
                     <td>
                       <IconButton onClick={() => setCart(cart.filter((p) => p.id !== product.id))}>
                         <FaTrash />
@@ -767,7 +797,7 @@ const PDV = () => {
                           {product.nome}
                         </p>
                         <p style={{ margin: "5px 0", color: "#555" }}>
-                          R$ {product.total.toFixed(2)}
+                          R$ {product.total}
                         </p>
                       </div>
                       {/* Checkbox */}
@@ -781,7 +811,7 @@ const PDV = () => {
                   ))}
               </div>
               <Button
-                onClick={confirmCancelItems}
+                onClick={openConfirmCancelItemModal}
                 style={{
                   marginTop: "20px",
                   backgroundColor: "red",
@@ -803,7 +833,7 @@ const PDV = () => {
               </CloseButton>
               <h2>Totalizar Compra</h2>
               <p>
-                <strong>Total Restante:</strong> R$ {remainingTotal.toFixed(2)}
+                <strong>Total Restante:</strong> R$ {(Number(remainingTotal) || 0).toFixed(2)}
               </p>
               <p>
                 <strong>Total Pago:</strong> R$ {totalPaid.toFixed(2)}
@@ -851,23 +881,19 @@ const PDV = () => {
               </div>
               <Button
                 onClick={handlePartialPayment}
-                style={{ marginTop: "20px" }}
               >
                 Confirmar Pagamento
               </Button>
               <Button
                 onClick={finalizeSale}
                 disabled={remainingTotal > 0}
-                style={{ marginTop: "20px" }}
               >
                 Finalizar Compra
               </Button>
               <Button
                 onClick={cancelPayment}
                 style={{
-                  marginTop: "20px",
                   backgroundColor: "red",
-                  color: "white",
                 }}
               >
                 Cancelar Pagamento

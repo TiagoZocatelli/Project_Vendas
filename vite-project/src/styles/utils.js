@@ -241,7 +241,7 @@ export const Notification = styled.div`
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
   font-size: 1rem;
   font-weight: bold;
-  z-index: 99999;
+  z-index: 999999;
   display: flex;
   align-items: center; /* Alinha o ícone e o texto */
   gap: 10px; /* Espaçamento entre ícone e texto */
