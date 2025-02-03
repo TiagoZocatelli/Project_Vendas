@@ -14,8 +14,39 @@ import {
     TableRow,
     TableCell,
     ActionIcon,
+    Select,
 } from '../../../styles/utils'
+import InputMask from "react-input-mask";
 import { Notification } from "../../../styles/utils";
+const estadosBrasil = [
+    { sigla: "AC", nome: "Acre" },
+    { sigla: "AL", nome: "Alagoas" },
+    { sigla: "AP", nome: "Amapá" },
+    { sigla: "AM", nome: "Amazonas" },
+    { sigla: "BA", nome: "Bahia" },
+    { sigla: "CE", nome: "Ceará" },
+    { sigla: "DF", nome: "Distrito Federal" },
+    { sigla: "ES", nome: "Espírito Santo" },
+    { sigla: "GO", nome: "Goiás" },
+    { sigla: "MA", nome: "Maranhão" },
+    { sigla: "MT", nome: "Mato Grosso" },
+    { sigla: "MS", nome: "Mato Grosso do Sul" },
+    { sigla: "MG", nome: "Minas Gerais" },
+    { sigla: "PA", nome: "Pará" },
+    { sigla: "PB", nome: "Paraíba" },
+    { sigla: "PR", nome: "Paraná" },
+    { sigla: "PE", nome: "Pernambuco" },
+    { sigla: "PI", nome: "Piauí" },
+    { sigla: "RJ", nome: "Rio de Janeiro" },
+    { sigla: "RN", nome: "Rio Grande do Norte" },
+    { sigla: "RS", nome: "Rio Grande do Sul" },
+    { sigla: "RO", nome: "Rondônia" },
+    { sigla: "RR", nome: "Roraima" },
+    { sigla: "SC", nome: "Santa Catarina" },
+    { sigla: "SP", nome: "São Paulo" },
+    { sigla: "SE", nome: "Sergipe" },
+    { sigla: "TO", nome: "Tocantins" },
+];
 
 import api from '../../../api'
 import { FaCheckCircle, FaEdit, FaExclamationCircle, FaTrash } from "react-icons/fa";
@@ -38,6 +69,7 @@ const Filiais = () => {
     useEffect(() => {
         fetchFiliais();
     }, []);
+    const removeMask = (value) => value.replace(/\D/g, "");
 
     const fetchFiliais = async () => {
         try {
@@ -53,6 +85,23 @@ const Filiais = () => {
         setTimeout(() => setMessage(null), 3000); // Remove a mensagem após 3 segundos
     };
 
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setIsEditing(false);
+        setEditId(null);
+        setFormData({
+            nome: "",
+            cnpj: "",
+            telefone: "",
+            cep: "",
+            codigo: "",
+            endereco: "",
+            cidade: "",
+            estado: ""
+        });
+    };
+
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
@@ -61,22 +110,26 @@ const Filiais = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const formattedData = {
+                nome: formData.nome,
+                cnpj: removeMask(formData.cnpj),
+                telefone: removeMask(formData.telefone),
+                cep: removeMask(formData.cep),
+                codigo: formData.codigo,
+                endereco: formData.endereco,
+                cidade: formData.cidade,
+                estado: formData.estado
+            };
+
             if (isEditing) {
-                await api.put(`/filiais/${editId}`, formData);
+                await api.put(`/filiais/${editId}`, formattedData);
                 showMessage("Filial atualizada com sucesso!", "success");
             } else {
-                await api.post("/filiais-cadastrar", formData);
+                await api.post("/filiais-cadastrar", formattedData);
                 showMessage("Filial cadastrada com sucesso!", "success");
             }
+
             fetchFiliais();
-            setFormData({
-                nome: "",
-                codigo: "",
-                telefone: "",
-                endereco: "",
-                cidade: "",
-                estado: "",
-            });
             setShowModal(false);
         } catch (error) {
             showMessage("Erro ao salvar filial.", "error");
@@ -98,6 +151,37 @@ const Filiais = () => {
         setEditId(filial.id);
         setFormData(filial);
         setShowModal(true);
+    };
+
+
+    const formatCPF = (cpf) => {
+        if (!cpf || cpf.length !== 11) return cpf; // Verifica se o CPF é válido
+        return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    };
+
+
+    const formatPhone = (phone) => {
+        if (!phone) return phone;
+
+        // Remover caracteres não numéricos
+        phone = phone.replace(/\D/g, "");
+
+        // Formato para telefone fixo (ex: (44) 3222-1234)
+        if (phone.length === 10) {
+            return phone.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+        }
+
+        // Formato para celular (ex: (44) 99897-1234)
+        if (phone.length === 11) {
+            return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+        }
+
+        return phone; // Retorna o número sem formatação se não corresponder
+    };
+
+    const formatCEP = (cep) => {
+        if (!cep || cep.length !== 8) return cep; // Verifica se o CEP é válido
+        return cep.replace(/(\d{5})(\d{3})/, "$1-$2");
     };
 
     return (
@@ -124,6 +208,8 @@ const Filiais = () => {
                         <tr>
                             <TableHeader>Número</TableHeader>
                             <TableHeader>Nome</TableHeader>
+                            <TableHeader>CNPJ</TableHeader>
+                            <TableHeader>CEP</TableHeader>
                             <TableHeader>Código</TableHeader>
                             <TableHeader>Telefone</TableHeader>
                             <TableHeader>Endereço</TableHeader>
@@ -138,8 +224,10 @@ const Filiais = () => {
                                 <TableRow key={filial.id}>
                                     <TableCell>{filial.id}</TableCell>
                                     <TableCell>{filial.nome}</TableCell>
+                                    <TableCell>{formatCPF(filial.cnpj)}</TableCell>
+                                    <TableCell>{formatCEP(filial.cep)}</TableCell>
                                     <TableCell>{filial.codigo}</TableCell>
-                                    <TableCell>{filial.telefone}</TableCell>
+                                    <TableCell>{formatPhone(filial.telefone)}</TableCell>
                                     <TableCell>{filial.endereco}</TableCell>
                                     <TableCell>{filial.cidade}</TableCell>
                                     <TableCell>{filial.estado}</TableCell>
@@ -176,19 +264,46 @@ const Filiais = () => {
                                     onChange={handleInputChange}
                                     required
                                 />
+                                <InputMask
+                                    mask={formData.cnpj && formData.cnpj.replace(/\D/g, "").length > 11 ? "99.999.999/9999-99" : "999.999.999-99"}
+                                    value={formData.cnpj || ""} // Evita undefined
+                                    onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                                    alwaysShowMask={false} // Evita mostrar a máscara quando o campo está vazio
+                                >
+                                    {inputProps => <Input {...inputProps} name="cnpj" placeholder="CNPJ/CPF" required />}
+                                </InputMask>
+
+
+                                <InputMask
+                                    mask="99999-999"
+                                    value={formData.cep}
+                                    onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                                    beforeMaskedStateChange={({ nextState }) => {
+                                        return { ...nextState, value: nextState.value };
+                                    }}
+                                >
+                                    {inputProps => <Input {...inputProps} name="cep" placeholder="CEP" required />}
+                                </InputMask>
+
                                 <Input
                                     name="codigo"
                                     placeholder="Código"
                                     value={formData.codigo}
-                                    onChange={handleInputChange}
+                                    onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                                     required
                                 />
-                                <Input
-                                    name="telefone"
-                                    placeholder="Telefone"
+
+                                <InputMask
+                                    mask="(99) 99999-9999"
                                     value={formData.telefone}
-                                    onChange={handleInputChange}
-                                />
+                                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                                    beforeMaskedStateChange={({ nextState }) => {
+                                        return { ...nextState, value: nextState.value };
+                                    }}
+                                >
+                                    {inputProps => <Input {...inputProps} name="telefone" placeholder="Telefone" required />}
+                                </InputMask>
+
                                 <Input
                                     name="endereco"
                                     placeholder="Endereço"
@@ -201,16 +316,23 @@ const Filiais = () => {
                                     value={formData.cidade}
                                     onChange={handleInputChange}
                                 />
-                                <Input
+                                <Select
                                     name="estado"
-                                    placeholder="Estado"
                                     value={formData.estado}
                                     onChange={handleInputChange}
-                                    maxLength={2}
-                                />
+                                    required
+                                >
+                                    <option value="" disabled>Selecione um estado</option>
+                                    {estadosBrasil.map((estado) => (
+                                        <option key={estado.sigla} value={estado.sigla}>
+                                            {estado.nome} ({estado.sigla})
+                                        </option>
+                                    ))}
+                                </Select>
+
                             </AddProductForm>
                             <Button type="submit">Salvar</Button>
-                            <Button onClick={() => setShowModal(false)}>Cancelar</Button>
+                            <Button onClick={handleCloseModal}>Cancelar</Button>
                         </form>
                     </ModalContent>
                 </ModalContainer>

@@ -17,7 +17,8 @@ import LoginPDV from "./components/pages/Vendas/login";
 import Cadastros from "./components/pages/cadastros";
 import Operadores from "./components/pages/Operadores";
 import Users from "./components/pages/LoginUser"; // 🔹 Tela de Login
-import UsuariosGerenciamento from './components/pages/Usuarios'
+import UsuariosGerenciamento from './components/pages/Usuarios';
+import { ConfirmButton, ConfirmCancelButton, ConfirmModalContainer, ConfirmModalContent, ConfirmButtonContainer, BackButton } from "./styles/utils";
 
 // 🔹 Proteção de Rotas (Exige Login)
 const PrivateRouteUsers = ({ children }) => {
@@ -43,14 +44,14 @@ function Layout() {
     <>
       <GlobalStyle />
 
-      {/* 🔹 Renderiza o Header em todas as páginas, exceto Login e LoginPDV */}
-      {location.pathname !== "/" && location.pathname !== "/loginPdv" && <Header />}
+      {/* 🔹 Esconder Header se estiver em /vendas */}
+      {location.pathname !== "/" && location.pathname !== "/loginPdv" && location.pathname !== "/vendas" && <Header />}
 
       <Routes>
         {/* 🔹 Tela de Login (se estiver logado, redireciona para /home) */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/home" /> : <Users />} />
 
-        {/* 🔹 Página de Login do PDV, acessada apenas ao tentar entrar no PDV */}
+        {/* 🔹 Página de Login do PDV */}
         <Route path="/loginPdv" element={<LoginPDV />} />
 
         {/* 🔹 Área do sistema (Somente para usuários comuns) */}
@@ -65,11 +66,14 @@ function Layout() {
         <Route path="/entradas" element={<PrivateRouteUsers><Entradas /></PrivateRouteUsers>} />
         <Route path="/relatorios" element={<PrivateRouteUsers><Relatorios /></PrivateRouteUsers>} />
         <Route path="/financeiro" element={<PrivateRouteUsers><Financeiro /></PrivateRouteUsers>} />
-        <Route path="/cadastros/usuarios" element={<PrivateRouteUsers><UsuariosGerenciamento /> </PrivateRouteUsers>} />
-
+        <Route path="/cadastros/usuarios" element={<PrivateRouteUsers><UsuariosGerenciamento /></PrivateRouteUsers>} />
 
         {/* 🔹 Área do PDV (Somente para usuários do PDV) */}
-        <Route path="/vendas" element={<PrivateRoutePdv><PDV /></PrivateRoutePdv>} />
+        <Route path="/vendas" element={
+          <PrivateRoutePdv>
+            <PdvWithBackButton /> {/* 🔹 Novo Componente que exibe o botão de voltar */}
+          </PrivateRoutePdv>
+        } />
 
         {/* 🔹 Logout */}
         <Route path="/logout" element={<Logout />} />
@@ -77,6 +81,56 @@ function Layout() {
     </>
   );
 }
+
+// 🔹 Componente PDV que inclui um botão de voltar e remove o tokenPdv com confirmação
+const PdvWithBackButton = () => {
+  const navigate = useNavigate();
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // ✅ Estado do modal de confirmação
+
+  // 🔹 Exibe o modal antes de sair do PDV
+  const handleBackToHome = () => {
+    setIsConfirmModalOpen(true);
+  };
+
+  // 🔹 Confirma saída do PDV e limpa token
+  const confirmBackToHome = () => {
+    localStorage.removeItem("tokenPdv"); // 🔹 Remove o tokenPdv ao sair do PDV
+    navigate("/home"); // 🔹 Redireciona para Home
+  };
+
+  // 🔹 Fecha o modal sem sair
+  const closeConfirmModal = () => {
+    setIsConfirmModalOpen(false);
+  };
+
+  return (
+    <div>
+      {/* 🔹 Botão para sair do PDV com confirmação */}
+      <BackButton
+        onClick={handleBackToHome}
+      >
+        X
+      </BackButton>
+
+      {/* 🔹 Modal de Confirmação */}
+      {isConfirmModalOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Confirmar saída do PDV</h2>
+            <p>Tem certeza de que deseja voltar para a Home?</p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={confirmBackToHome}>Sim, Voltar</ConfirmButton>
+              <ConfirmCancelButton onClick={closeConfirmModal}>Cancelar</ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
+
+      {/* 🔹 Componente PDV */}
+      <PDV />
+    </div>
+  );
+};
 
 function App() {
   return (

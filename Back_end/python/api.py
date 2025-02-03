@@ -1,5 +1,7 @@
 import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from psycopg2 import errors  
 import psycopg2
 import base64
@@ -49,27 +51,29 @@ def loginPDV():
 
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, nome, senha, cargo FROM operadores WHERE id = %s AND ativo = TRUE", (codigo,))
+            # 🔹 Agora buscando também a filial_id
+            cur.execute("SELECT id, nome, senha, cargo, filial_id FROM operadores WHERE id = %s AND ativo = TRUE", (codigo,))
             operador = cur.fetchone()
 
         if not operador:
             return jsonify({"error": "Operador não encontrado ou inativo!"}), 401
 
-        operador_id, nome, senha_hash, cargo = operador
+        operador_id, nome, senha_hash, cargo, filial_id = operador
 
         # 🔹 Verifica a senha criptografada (se armazenada com bcrypt)
         if not bcrypt.checkpw(senha.encode("utf-8"), senha_hash.encode("utf-8")):
             return jsonify({"error": "Senha incorreta!"}), 401
 
-        # 🔹 Gera token JWT
-        access_token = create_access_token(identity={"id": operador_id, "nome": nome, "cargo": cargo})
+        # 🔹 Gera token JWT com filial_id incluído
+        access_token = create_access_token(identity={"id": operador_id, "nome": nome, "cargo": cargo, "filial_id": filial_id})
 
         return jsonify({
             "message": "Login realizado com sucesso!",
             "operador": {
                 "id": operador_id,
                 "nome": nome,
-                "cargo": cargo
+                "cargo": cargo,
+                "filial_id": filial_id  # 🔹 Retornando filial no JSON de resposta
             },
             "token": access_token
         }), 200
@@ -98,6 +102,7 @@ def listar_operadores():
 @app.route("/operadores", methods=["POST"])
 def criar_operador():
     data = request.get_json()
+    print(data)
     
     if not all(k in data for k in ["nome", "cpf", "email", "senha", "cargo", "filial_id"]):
         return jsonify({"error": "Todos os campos são obrigatórios!"}), 400
@@ -458,26 +463,137 @@ def cancelar_pedido(id):
 @app.route("/vendas", methods=["POST"])
 def criar_venda():
     data = request.get_json()
-    pedido_id = data.get("pedido_id")
-    operador_id = data["operador_id"]
-    cliente = data.get("cliente", "Cliente Não Identificado")
-    itens = data["itens"]
+    print("Recebendo dados:", data)  # Debug para verificar os valores recebidos
+
+    try:
+        # Dados obrigatórios
+        operador_id = int(data["operador_id"])
+        cliente = data.get("cliente", "Cliente Não Identificado")
+        filial_id = int(data["filial_id"])  # Garantindo que seja um número
+        itens = data["itens"]
+        pagamentos = data["pagamentos"]
+
+        # Trata `pedido` corretamente
+        pedido_id = data.get("pedido")  # Pode ser None, não precisa converter
+
+        # Converte os valores de `itens` para float corretamente
+        total_venda = sum(
+            (float(item["quantidade"]) * float(item["preco_unitario"])) - float(item.get("desconto", 0))
+            for item in itens
+        )
+
+        # Calcula o total pago e o troco
+        total_pago = sum(float(pagamento["valor"]) for pagamento in pagamentos)
+        troco = max(0, total_pago - total_venda)
+
+    except (ValueError, TypeError, KeyError) as e:
+        print("Erro ao processar dados da venda:", e)
+        return jsonify({"error": f"Erro ao processar os dados: {str(e)}"}), 400
 
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        total_venda = sum((item["quantidade"] * item["preco_unitario"]) - item["desconto"] for item in itens)
+    try:
+        with conn.cursor() as cur:
+            # Registra a venda associada à filial com o troco
+            cur.execute("""
+                INSERT INTO vendas (pedido_id, operador_id, cliente, filial_id, total, troco) 
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+            """, (pedido_id, operador_id, cliente, filial_id, total_venda, troco))
+            venda_id = cur.fetchone()[0]
 
-        cur.execute("INSERT INTO vendas (pedido_id, operador_id, cliente, total) VALUES (%s, %s, %s, %s) RETURNING id",
-                    (pedido_id, operador_id, cliente, total_venda))
-        venda_id = cur.fetchone()[0]
+            erros_estoque = []  # Lista para armazenar erros de estoque
 
-        for item in itens:
-            cur.execute("INSERT INTO vendas_itens (venda_id, produto_id, quantidade, preco_unitario, desconto, total) VALUES (%s, %s, %s, %s, %s, %s)",
-                        (venda_id, item["produto_id"], item["quantidade"], item["preco_unitario"], item["desconto"], (item["quantidade"] * item["preco_unitario"]) - item["desconto"]))
+            # Processa os itens vendidos e atualiza o estoque
+            for item in itens:
+                try:
+                    produto_id = int(item["produto_id"])
+                    quantidade = float(item["quantidade"])
+                    preco_unitario = float(item["preco_unitario"])
+                    desconto = float(item.get("desconto", 0))
+                    total_item = (quantidade * preco_unitario) - desconto
 
-        conn.commit()
-    conn.close()
-    return jsonify({"message": "Venda registrada!", "venda_id": venda_id})
+                    # Registra o item da venda
+                    cur.execute("""
+                        INSERT INTO vendas_itens (venda_id, produto_id, quantidade, preco_unitario, desconto, total, filial_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (venda_id, produto_id, quantidade, preco_unitario, desconto, total_item, filial_id))
+
+                    # Verifica se o produto tem estoque na filial
+                    cur.execute("""
+                        SELECT quantidade FROM estoque_filial
+                        WHERE filial_id = %s AND produto_id = %s
+                    """, (filial_id, produto_id))
+                    estoque_atual = cur.fetchone()
+
+                    if estoque_atual:
+                        estoque_atual = float(estoque_atual[0])
+                        if estoque_atual >= quantidade:
+                            # Atualiza o estoque reduzindo a quantidade vendida
+                            cur.execute("""
+                                UPDATE estoque_filial
+                                SET quantidade = quantidade - %s
+                                WHERE filial_id = %s AND produto_id = %s
+                            """, (quantidade, filial_id, produto_id))
+                        else:
+                            erros_estoque.append(f"Estoque insuficiente para o produto {produto_id}")
+                    else:
+                        erros_estoque.append(f"Produto {produto_id} não encontrado no estoque da filial {filial_id}")
+
+                except Exception as e:
+                    erros_estoque.append(f"Erro ao processar item {produto_id}: {str(e)}")
+
+            # Se houver erros de estoque, cancela a transação
+            if erros_estoque:
+                conn.rollback()
+                print("Erro de estoque:", erros_estoque)
+                return jsonify({"error": "Erro de estoque", "detalhes": erros_estoque}), 400
+
+            # Registra os pagamentos
+            for pagamento in pagamentos:
+                try:
+                    forma_pagamento_id = int(pagamento["forma_pagamento_id"])
+                    valor = float(pagamento["valor"])
+
+                    cur.execute("""
+                        INSERT INTO vendas_pagamento (venda_id, forma_pagamento_id, valor)
+                        VALUES (%s, %s, %s)
+                    """, (venda_id, forma_pagamento_id, valor))
+
+                except Exception as e:
+                    print("Erro ao registrar pagamento:", e)
+                    conn.rollback()
+                    return jsonify({"error": f"Erro ao registrar pagamento: {str(e)}"}), 400
+
+            conn.commit()
+
+        return jsonify({
+            "message": "Venda registrada com sucesso!",
+            "venda_id": venda_id,
+            "total_venda": total_venda,
+            "total_pago": total_pago,
+            "troco": troco
+        }), 201
+
+    except Exception as e:
+        conn.rollback()
+        print("Erro na venda:", str(e))  # Debug do erro no console
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/formas_pagamento", methods=["GET"])
+def listar_formas_pagamento():
+    """Retorna todas as formas de pagamento disponíveis."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, nome FROM formas_pagamento ORDER BY nome")
+            formas_pagamento = [{"id": row[0], "nome": row[1]} for row in cur.fetchall()]
+        return jsonify(formas_pagamento), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route("/vendas/<int:id>", methods=["DELETE"])
@@ -515,14 +631,22 @@ def listar_niveis_acesso():
         return jsonify(results)  # Retorna os dados como JSON
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+def remove_mask(value):
+    """Remove caracteres não numéricos (para CNPJ e CEP)"""
+    if value:
+        return ''.join(filter(str.isdigit, value))
+    return None
 
 
 @app.route("/filiais-cadastrar", methods=["POST"])
 def criar_filial():
     """Cria uma nova filial."""
     data = request.json
-    if not data or "nome" not in data or "estado" not in data:
-        return jsonify({"error": "Dados inválidos ou incompletos"}), 400
+
+    # 🔹 Verificar se os campos obrigatórios foram enviados
+    required_fields = ["nome", "estado", "cnpj"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Campos obrigatórios estão faltando."}), 400
 
     conn = get_db_connection()
     if not conn:
@@ -530,14 +654,25 @@ def criar_filial():
 
     try:
         with conn.cursor() as cur:
+            # 🔹 Se não fornecer um código, criar um automaticamente
             if not data.get("codigo"):
                 cur.execute("SELECT COUNT(*) FROM filiais")
                 count = cur.fetchone()[0] + 1
                 data["codigo"] = f"Filial {count}"
 
+            # 🔹 Remover formatação do CNPJ e CEP antes de salvar
+            cnpj_clean = remove_mask(data.get("cnpj"))
+            cep_clean = remove_mask(data.get("cep"))
+
+            # 🔹 Verificar se o CNPJ já está cadastrado
+            cur.execute("SELECT id FROM filiais WHERE cnpj = %s", (cnpj_clean,))
+            if cur.fetchone():
+                return jsonify({"error": "CNPJ já está cadastrado."}), 400
+
+            # 🔹 Inserir no banco
             cur.execute("""
-                INSERT INTO filiais (nome, codigo, telefone, endereco, cidade, estado, ativo)
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO filiais (nome, codigo, telefone, endereco, cidade, estado, cnpj, cep, ativo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             """, (
                 data["nome"],
                 data["codigo"],
@@ -545,11 +680,20 @@ def criar_filial():
                 data.get("endereco"),
                 data.get("cidade"),
                 data.get("estado"),
+                cnpj_clean,   # 🔹 CNPJ sem máscara
+                cep_clean,    # 🔹 CEP sem máscara
                 data.get("ativo", True)
             ))
+            
             filial_id = cur.fetchone()[0]
             conn.commit()
-        return jsonify({"message": "Filial criada com sucesso.", "id": filial_id, "codigo": data["codigo"]}), 201
+
+        return jsonify({
+            "message": "Filial criada com sucesso.",
+            "id": filial_id,
+            "codigo": data["codigo"]
+        }), 201
+
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
@@ -567,27 +711,40 @@ def atualizar_filial(id):
 
     try:
         with conn.cursor() as cur:
+            # Verifica se o ID da filial existe antes de atualizar
+            cur.execute("SELECT id FROM filiais WHERE id = %s", (id,))
+            if not cur.fetchone():
+                return jsonify({"error": "Filial não encontrada."}), 404
+
+            # Atualiza os dados da filial, incluindo o CNPJ, CEP e código
             cur.execute("""
                 UPDATE filiais
-                SET nome = %s, codigo = %s, telefone = %s, endereco = %s, cidade = %s, estado = %s, ativo = %s
+                SET nome = %s, codigo = %s, cnpj = %s, telefone = %s, cep = %s, endereco = %s, cidade = %s, estado = %s
                 WHERE id = %s
             """, (
                 data["nome"],
-                data["codigo"],
+                data.get("codigo"),  # ✅ Adicionado campo 'codigo'
+                data.get("cnpj"),
                 data.get("telefone"),
+                data.get("cep"),
                 data.get("endereco"),
                 data.get("cidade"),
                 data.get("estado"),
-                data.get("ativo", True),  # Define como ativo por padrão se não for informado
                 id
             ))
             conn.commit()
+
         return jsonify({"message": "Filial atualizada com sucesso."}), 200
+
     except Exception as e:
         conn.rollback()
+        print(f"Erro ao atualizar filial: {e}")  # 🔹 Mostra erro detalhado no console
         return jsonify({"error": str(e)}), 500
+
     finally:
         conn.close()
+
+
 
 @app.route("/filiais/<int:id>", methods=["DELETE"])
 def excluir_filial(id):
@@ -746,6 +903,7 @@ def obter_cliente(id):
 def criar_cliente():
     """Cria um novo cliente."""
     data = request.json
+    print("📌 Dados Recebidos:", data)  # 🔍 Log dos dados recebidos
     required_fields = ["nome", "cpf_cnpj"]
     if not all(field in data for field in required_fields):
         return jsonify({"error": "Campos obrigatórios estão faltando."}), 400
@@ -785,13 +943,22 @@ def criar_cliente():
 
 @app.route("/clientes/<int:id>", methods=["PUT"])
 def atualizar_cliente(id):
-    """Atualiza os dados de um cliente."""
+    """Atualiza os dados de um cliente existente no banco de dados."""
+    
     data = request.json
+    print("📌 Dados Recebidos para Atualização:", data)  # Log dos dados recebidos para depuração
+
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
+
     try:
         with conn.cursor() as cur:
+            # Verificar se o cliente existe
+            cur.execute("SELECT id FROM clientes WHERE id = %s", (id,))
+            if not cur.fetchone():
+                return jsonify({"error": "Cliente não encontrado."}), 404
+
             # Verificar se o CPF/CNPJ já está cadastrado em outro cliente
             cur.execute("SELECT id FROM clientes WHERE cpf_cnpj = %s AND id != %s", (data["cpf_cnpj"], id))
             if cur.fetchone():
@@ -800,21 +967,27 @@ def atualizar_cliente(id):
             # Atualizar os dados do cliente
             cur.execute("""
                 UPDATE clientes
-                SET nome = %s, cpf_cnpj = %s, endereco = %s, telefone = %s, email = %s
+                SET nome = %s, cpf_cnpj = %s, endereco = %s, telefone = %s, email = %s, cidade = %s, estado = %s
                 WHERE id = %s
             """, (
                 data["nome"],
                 data["cpf_cnpj"],
-                data.get("endereco"),
-                data.get("telefone"),
-                data.get("email"),
+                data.get("endereco", ""),   # Evita inserir NULL
+                data.get("telefone", ""),   # Evita inserir NULL
+                data.get("email", ""),      # Evita inserir NULL
+                data.get("cidade", "Desconhecido"),  # Valor padrão caso não enviado
+                data.get("estado", "XX"),  # XX para estados desconhecidos
                 id
             ))
+
             conn.commit()
+
         return jsonify({"message": "Cliente atualizado com sucesso."})
+
     except Exception as e:
         conn.rollback()
         return jsonify({"error": str(e)}), 500
+
     finally:
         conn.close()
 

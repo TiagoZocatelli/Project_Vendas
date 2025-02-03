@@ -70,15 +70,18 @@ CREATE TABLE produto_fornecedores (
 CREATE TABLE filiais (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,          -- Nome da filial
-    codigo VARCHAR(20) UNIQUE NOT NULL, -- Código identificador da filial
-    telefone VARCHAR(20),               -- Telefone da filial
-    endereco TEXT,                      -- Endereço completo da filial
-    cidade VARCHAR(100),                -- Cidade onde a filial está localizada
-    estado VARCHAR(2),                  -- Sigla do estado (ex: SP, RJ)
-    ativo BOOLEAN DEFAULT TRUE,         -- Status da filial
+    codigo VARCHAR(20) UNIQUE NOT NULL,  -- Código identificador da filial
+    cnpj VARCHAR(18) UNIQUE NOT NULL,    -- CNPJ da filial (Formato: 00.000.000/0000-00)
+    telefone VARCHAR(20),                -- Telefone da filial
+    cep VARCHAR(9),                      -- CEP da filial (Formato: 00000-000)
+    endereco TEXT,                        -- Endereço completo da filial
+    cidade VARCHAR(100),                  -- Cidade onde a filial está localizada
+    estado VARCHAR(2),                    -- Sigla do estado (ex: SP, RJ)
+    ativo BOOLEAN DEFAULT TRUE,           -- Status da filial
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
 
 
 CREATE TABLE clientes (
@@ -148,6 +151,14 @@ CREATE TABLE operadores (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE vendas_pagamento (
+    id SERIAL PRIMARY KEY,
+    venda_id INT REFERENCES vendas(id) ON DELETE CASCADE,
+    forma_pagamento_id INT REFERENCES formas_pagamento(id) ON DELETE RESTRICT,
+    valor DECIMAL(10,2) NOT NULL
+    troco DECIMAL(10,2)
+);
+
 -- Tabela de Ofertas e Descontos
 CREATE TABLE ofertas (
     id SERIAL PRIMARY KEY,
@@ -184,15 +195,11 @@ CREATE TABLE pedido_itens (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Pagamentos
-CREATE TABLE pagamentos (
+CREATE TABLE vendas_pagamento (
     id SERIAL PRIMARY KEY,
-    pedido_id INT REFERENCES pedidos(id) ON DELETE CASCADE,
-    metodo VARCHAR(50) NOT NULL, -- "Dinheiro", "Cartão", "Pix"
-    valor DECIMAL(10,2) NOT NULL,
-    troco DECIMAL(10,2) DEFAULT 0.00,
-    status VARCHAR(20) DEFAULT 'Pago', -- "Pago", "Pendente", "Cancelado"
-    data_pagamento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    venda_id INT REFERENCES vendas(id) ON DELETE CASCADE,
+    forma_pagamento_id INT REFERENCES formas_pagamento(id) ON DELETE RESTRICT,
+    valor DECIMAL(10,2) NOT NULL
 );
 
 -- Tabela de Importação de Pedidos
@@ -213,6 +220,12 @@ CREATE TABLE vendas (
     total DECIMAL(10,2) DEFAULT 0.00,
     status VARCHAR(20) DEFAULT 'Concluída' -- "Concluída", "Cancelada", etc.
 );
+
+CREATE TABLE formas_pagamento (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(50) UNIQUE NOT NULL
+);
+
 
 CREATE TABLE vendas_itens (
     id SERIAL PRIMARY KEY,

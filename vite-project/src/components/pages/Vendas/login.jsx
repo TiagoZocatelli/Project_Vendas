@@ -34,6 +34,7 @@ const LoginPDV = () => {
       // 🔹 Armazena os dados no LocalStorage
       localStorage.setItem("tokenPdv", token);
       localStorage.setItem("operador_id", operador.id);
+      localStorage.setItem("operador_filial", operador.filial_id);
       localStorage.setItem("operador_nome", operador.nome);
       localStorage.setItem("operador_codigo", operador.codigo);
 

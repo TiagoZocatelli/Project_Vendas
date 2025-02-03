@@ -26,15 +26,16 @@ import InputMask from "react-input-mask";
 
 const Operadores = () => {
   const [operadores, setOperadores] = useState([]);
-  const [filiais, setFiliais] = useState([]);
-  const [selectedFilial, setSelectedFilial] = useState(""); // 🔹 Filial selecionada
+  const [filiais, setFiliais] = useState([]);  // 🔹 Lista de filiais
+  const [selectedFilial, setSelectedFilial] = useState(""); // 🔹 Filial selecionada para filtro
   const [search, setSearch] = useState(""); // 🔹 Campo de busca por nome
   const [formData, setFormData] = useState({
     nome: "",
     cpf: "",
     email: "",
     senha: "",
-    cargo: "Vendedor", // 🔹 Define "Vendedor" como padrão
+    cargo: "Vendedor",
+    filial_id: "", // 🔹 Novo campo para filial
   });
   const [editId, setEditId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,14 +54,25 @@ const Operadores = () => {
   // 🔹 Carrega operadores da API
   useEffect(() => {
     fetchOperadores();
+    fetchFiliais();
   }, []);
 
   const fetchOperadores = async () => {
     try {
       const response = await api.get("/operadores");
       setOperadores(response.data);
+      console.log(response.data)
     } catch (error) {
       showMessage("Erro ao buscar operadores:", error);
+    }
+  };
+
+  const fetchFiliais = async () => {
+    try {
+      const response = await api.get("/filiais");
+      setFiliais(response.data);
+    } catch (error) {
+      showMessage("error", "Erro ao buscar filiais.");
     }
   };
 
@@ -103,14 +115,14 @@ const Operadores = () => {
     }
   };
 
-  // 🔹 Preenche o formulário e solicita confirmação para editar
   const handleEdit = (operador) => {
     setFormData({
       nome: operador.nome,
       cpf: operador.cpf,
       email: operador.email,
-      senha: "", // Não exibir a senha
+      senha: "",
       cargo: operador.cargo,
+      filial_id: operador.filial_id, // 🔹 Preenche a filial na edição
     });
     setEditId(operador.id);
     setIsModalOpen(true);
@@ -134,12 +146,12 @@ const Operadores = () => {
     }
   };
 
-  // 🔹 Abre o modal de cadastro
-  const openModal = () => {
-    setFormData({ nome: "", cpf: "", email: "", senha: "", cargo: "Vendedor" });
-    setEditId(null);
-    setIsModalOpen(true);
-  };
+ // 🔹 Abre o modal de cadastro
+ const openModal = () => {
+  setFormData({ nome: "", cpf: "", email: "", senha: "", cargo: "Vendedor", filial_id: "" });
+  setEditId(null);
+  setIsModalOpen(true);
+};
 
   // 🔹 Fecha os modais
   const closeModal = () => {
@@ -176,6 +188,7 @@ const Operadores = () => {
             <TableHeader>CPF</TableHeader>
             <TableHeader>Email</TableHeader>
             <TableHeader>Cargo</TableHeader>
+            <TableHeader>Filial</TableHeader>
             <TableHeader>Ações</TableHeader>
           </tr>
         </thead>
@@ -187,6 +200,7 @@ const Operadores = () => {
               <TableCell>{formatCPF(operador.cpf)}</TableCell>
               <TableCell>{operador.email}</TableCell>
               <TableCell>{operador.cargo}</TableCell>
+              <TableCell>{operador.filial}</TableCell>
               <TableCell>
                 <ActionIcon onClick={() => handleEdit(operador)}>
                   <FaEdit size={16} style={{ color: "#FF9800" }} />
@@ -230,6 +244,13 @@ const Operadores = () => {
                 <option value="Vendedor">Vendedor</option>
                 <option value="Gerente">Gerente</option>
                 <option value="Caixa">Caixa</option>
+              </Select>
+
+              <Select name="filial_id" value={formData.filial_id} onChange={handleChange} required>
+                <option value="">Selecione a Filial</option>
+                {filiais.map((filial) => (
+                  <option key={filial.id} value={filial.id}>{filial.nome}</option>
+                ))}
               </Select>
 
               <ConfirmButtonContainer>

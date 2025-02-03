@@ -23,7 +23,16 @@ import {
   SettingsInput,
   SettingsCheckbox,
   SettingsButton,
-  Notification
+  Notification,
+  PaymentModalContainer,
+  ModalTitle,
+  PaymentSelect,
+  PaymentInput,
+  ActionButton,
+  PaymentHistoryContainer,
+  PaymentHistoryText,
+  PaymentHistoryList,
+  ButtonGroup
 } from "./styles";
 import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import { CategorySection } from "./styles";
@@ -44,17 +53,15 @@ const PDV = () => {
 
   const operatorNumber = localStorage.getItem("operador_id");
   const operatorName = localStorage.getItem("operador_nome");
+  const operadorFilial = localStorage.getItem("operador_filial")
 
   const [selectedItems, setSelectedItems] = useState([]); // Itens selecionados para exclusão
   const [isCancelItemModalOpen, setIsCancelItemModalOpen] = useState(false); // Controle do modal de cancelamento
   const [cancelSearch, setCancelSearch] = useState(""); // Pesquisa no modal de cancelamento
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState("Dinheiro");
-  const [virtualKeyboard, setVirtualKeyboard] = useState(false);
-  const [alertSound, setAlertSound] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [autoPrint, setAutoPrint] = useState(false);
-  const [pdvLayout, setPdvLayout] = useState("Padrão");
   const [message, setMessage] = useState("");
 
   const [barcode, setBarcode] = useState("");
@@ -90,6 +97,18 @@ const PDV = () => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      try {
+        const response = await api.get("/formas_pagamento");
+        setPaymentMethods(response.data);
+      } catch (error) {
+        showMessage("Erro ao buscar formas de pagamento.", "error");
+      }
+    };
+    fetchPaymentMethods();
   }, []);
 
   // Busca os produtos da API ao carregar o componente
@@ -201,35 +220,32 @@ const PDV = () => {
   };
 
   const handlePartialPayment = () => {
-    if (paymentAmount <= 0) {
+    if (!paymentAmount || paymentAmount <= 0) {
       showMessage("Insira um valor válido para pagamento.", "error");
       return;
     }
 
-    // Atualizar o total pago
+    // Calcula o novo total pago
     const newTotalPaid = totalPaid + paymentAmount;
+    const newRemainingTotal = Math.max(0, remainingTotal - paymentAmount); // Garante que não seja negativo
+    const newChange = Math.max(0, newTotalPaid - totalGeneral); // Troco correto
 
-    if (newTotalPaid >= remainingTotal) {
-      setChange(newTotalPaid - remainingTotal); // Calcula o troco
-      setRemainingTotal(0); // Zera o valor restante
-    } else {
-      setRemainingTotal(remainingTotal - paymentAmount); // Atualiza o restante
-      setChange(0); // Não há troco
-    }
+    // Atualiza os estados corretamente
+    setTotalPaid(newTotalPaid);
+    setRemainingTotal(newRemainingTotal);
+    setChange(newChange); // Define o troco se houver
 
-    // Adicionar o pagamento ao histórico
+    // Adiciona o pagamento ao histórico
     setPaymentHistory([
       ...paymentHistory,
       { method: paymentMethod, amount: paymentAmount },
     ]);
 
-    // Atualiza o valor total pago
-    setTotalPaid(newTotalPaid);
-
-    // Resetar os valores
+    // Resetar os valores do pagamento
     setPaymentMethod("");
     setPaymentAmount("");
   };
+
 
   const openPaymentModal = () => {
     if (cart.length === 0) {
@@ -270,6 +286,62 @@ const PDV = () => {
       setHighlightedProduct({ nome: "Nenhum produto selecionado" });
     }
   };
+
+  const resetSale = () => {
+    setCart([]);
+    setTotalGeneral(0);
+    setRemainingTotal(0);
+    setTotalPaid(0);
+    setChange(0);
+    setPaymentHistory([]);
+    setPaymentMethod("");
+    setPaymentAmount(0);
+    setIsPaymentModalOpen(false);
+    setHighlightedProduct({ nome: "Nenhum produto selecionado" });
+  };
+
+  const sendSaleToAPI = async () => {
+    if (cart.length === 0) {
+      showMessage("Erro: Nenhum item no carrinho para registrar venda.", "error");
+      return;
+    }
+
+    if (remainingTotal > 0) {
+      showMessage("Erro: O pagamento não está completo.", "error");
+      return;
+    }
+
+    try {
+      const saleData = {
+        operador_id: operatorNumber,
+        filial_id: operadorFilial,
+        pedido: null, // 🔹 Defina corretamente a filial
+        cliente: "Cliente Padrão",
+        itens: cart.map((item) => ({
+          produto_id: item.id,
+          quantidade: item.quantity,
+          preco_unitario: item.preco_venda,
+          desconto: item.discountApplied || 0,
+        })),
+        pagamentos: paymentHistory.map((p) => ({
+          forma_pagamento_id: paymentMethods.find((pm) => pm.nome === p.method)?.id,
+          valor: p.amount,
+        })),
+      };
+
+      const response = await api.post("/vendas", saleData);
+
+      if (response.status === 201) {
+        showMessage("Venda finalizada e registrada com sucesso!", "success");
+        resetSale(); // 🔹 Reseta o PDV após finalizar a venda
+      } else {
+        showMessage("Erro ao registrar venda.", "error");
+      }
+    } catch (error) {
+      showMessage(`Erro ao enviar venda: ${error.message}`, "error");
+    }
+  };
+
 
   const handleBarcodeEnter = (e) => {
     if (e.key === "Enter") {
@@ -374,12 +446,17 @@ const PDV = () => {
   };
 
   const cancelPayment = () => {
-    setRemainingTotal(totalGeneral); // Reseta o total restante para o valor total original
-    setPaymentHistory([]); // Limpa o histórico de pagamentos
-    setPaymentMethod(""); // Reseta o método de pagamento
+    setTotalPaid(0); // Reseta o total pago
+    setRemainingTotal(totalGeneral); // Reseta o total restante para o valor total da compra
+    setChange(0); // Reseta o troco
+    setPaymentHistory([]); // Limpa todo o histórico de pagamentos
+    setPaymentMethod(""); // Reseta o método de pagamento selecionado
     setPaymentAmount(""); // Reseta o valor do pagamento
-    setIsPaymentModalOpen(false); // Fecha o modal
+    setIsPaymentModalOpen(false); // Fecha o modal de pagamento
+
+    showMessage("Todos os pagamentos foram cancelados.", "success");
   };
+
 
 
   return (
@@ -842,106 +919,82 @@ const PDV = () => {
           </ProductModal>
         )}
 
-        {/* Modal de Pagamento */}
         {isPaymentModalOpen && (
-          <ProductModal>
-            <ProductModalContent>
-              <CloseButton onClick={() => setIsPaymentModalOpen(false)}>
-                X
-              </CloseButton>
-              <h2>Totalizar Compra</h2>
-              <p>
-                <strong>Total Restante:</strong> R$ {(Number(remainingTotal) || 0).toFixed(2)}
-              </p>
-              <p>
-                <strong>Total Pago:</strong> R$ {totalPaid.toFixed(2)}
-              </p>
-              {change > 0 && (
-                <p>
-                  <strong>Troco:</strong> R$ {change.toFixed(2)}
-                </p>
-              )}
-              <div>
-                <label>Método de Pagamento:</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    marginTop: "10px",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="Cartão de Crédito">Cartão de Crédito</option>
-                  <option value="Cartão de Débito">Cartão de Débito</option>
-                </select>
-              </div>
-              <div style={{ marginTop: "10px" }}>
-                <label>Valor do Pagamento:</label>
-                <input
-                  type="number"
-                  value={paymentAmount === "" ? "" : paymentAmount}
-                  onChange={(e) =>
-                    setPaymentAmount(
-                      e.target.value ? Number(e.target.value) : ""
-                    )
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    marginTop: "10px",
-                    borderRadius: "8px",
-                  }}
-                />
-              </div>
-              <IconButtonGroup>
-              <Button
-                title="Confirmar pagamento parcial"
-                style={{ backgroundColor: "#4CAF50", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
-                onClick={handlePartialPayment}
-              >
-                <FaCheckCircle size={16} />
-                Confirmar Pagamento
-              </Button>
+          <ModalOverlay >
 
-              <Button
-                title="Finalizar compra"
-                style={{ backgroundColor: "#2196F3", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
-                onClick={finalizeSale}
-                disabled={remainingTotal > 0}
-              >
-                <FaMoneyBillWave size={16} />
-                Finalizar Compra
-              </Button>
+          <PaymentModalContainer>
+            <CloseButton onClick={() => setIsPaymentModalOpen(false)}>×</CloseButton>
 
-              <Button
-                title="Cancelar pagamento"
-                style={{ backgroundColor: "red", color: "white", display: "flex", alignItems: "center", gap: "8px" }}
-                onClick={cancelPayment}
-              >
-                <FaTimes size={16} />
-                Cancelar Pagamento
-              </Button>
-              </IconButtonGroup>
+            <ModalTitle>💳 Finalizar Pagamento</ModalTitle>
 
-              {/* Histórico de Pagamentos */}
-              {paymentHistory.length > 0 && (
-                <div style={{ marginTop: "20px" }}>
-                  <h3>Pagamentos Realizados:</h3>
-                  <ul>
-                    {paymentHistory.map((payment, index) => (
-                      <li key={index}>
-                        {payment.method}: R$ {payment.amount.toFixed(2)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </ProductModalContent>
-          </ProductModal>
+            {/* Exibição do Total */}
+            <TotalContainer>
+              <TotalDisplay>
+                Total Geral: <span>R$ {(Number(totalGeneral) || 0).toFixed(2)}</span>
+              </TotalDisplay>
+            </TotalContainer>
+
+            {/* Detalhes do Pagamento */}
+            <p><strong>💰 Total Restante:</strong> R$ {(Number(remainingTotal) || 0).toFixed(2)}</p>
+            <p><strong>✅ Total Pago:</strong> R$ {totalPaid.toFixed(2)}</p>
+            {change > 0 && <p><strong>🔄 Troco:</strong> R$ {change.toFixed(2)}</p>}
+
+            {/* Escolha do Método de Pagamento */}
+            <div>
+              <label>Método de Pagamento:</label>
+              <PaymentSelect
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option value="">Selecione</option>
+                {paymentMethods.map((method) => (
+                  <option key={method.id} value={method.nome}>
+                    {method.nome}
+                  </option>
+                ))}
+              </PaymentSelect>
+            </div>
+
+            {/* Input de Valor do Pagamento */}
+            <div style={{ marginTop: "10px" }}>
+              <label>💵 Valor do Pagamento:</label>
+              <PaymentInput
+                type="number"
+                value={paymentAmount === "" ? "" : paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value ? Number(e.target.value) : "")}
+              />
+            </div>
+
+            {/* Botões de Ação */}
+            <ButtonGroup>
+              <ActionButton variant="confirm" onClick={handlePartialPayment}>
+                <FaCheckCircle size={16} /> Confirmar Pagamento
+              </ActionButton>
+
+              <ActionButton variant="finalize" onClick={sendSaleToAPI} disabled={remainingTotal > 0}>
+                <FaMoneyBillWave size={16} /> Finalizar Compra
+              </ActionButton>
+
+              <ActionButton variant="cancel" onClick={cancelPayment}>
+                <FaTimes size={16} /> Cancelar Pagamento
+              </ActionButton>
+            </ButtonGroup>
+
+            {/* Histórico de Pagamentos */}
+            {paymentHistory.length > 0 && (
+              <PaymentHistoryContainer>
+                <PaymentHistoryText>📜 Pagamentos Realizados:</PaymentHistoryText>
+                <PaymentHistoryList>
+                  {paymentHistory.map((payment, index) => (
+                    <li key={index}>
+                      {payment.method}: <strong>R$ {payment.amount.toFixed(2)}</strong>
+                    </li>
+                  ))}
+                </PaymentHistoryList>
+              </PaymentHistoryContainer>
+            )}
+          </PaymentModalContainer>
+          </ModalOverlay>
         )}
         <OperatorInfo>
           Operador: {operatorNumber} - {operatorName} | Data:{" "}

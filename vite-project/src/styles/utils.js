@@ -49,6 +49,29 @@ export const SearchBar = styled.input`
   }
 `;
 
+export const BackButton = styled.button`
+position: absolute;
+top: 15px;
+left: 15px;
+padding: 10px 14px;
+font-size: 18px;
+cursor: pointer;
+background: #0056b3;
+color: #ffffff;
+border: none;
+border-radius: 50px;
+transition: background 0.3s ease, transform 0.2s ease;
+box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+
+&:hover {
+  background: #007bff;
+}
+
+&:active {
+  background: #003d80;
+}
+`;
+
 
 export const Button = styled.button`
   background-color: #0056b3;

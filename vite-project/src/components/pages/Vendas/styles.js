@@ -20,6 +20,13 @@ export const IconButtonGroup = styled.div`
   margin-top: 10px;
 `;
 
+// 🔹 Grupo de Botões
+export const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+`;
+
 
 export const IconButton = styled.button`
   background: ${(props) => props.$bgColor || "#0056b3"}; /* Cor padrão */
@@ -242,6 +249,129 @@ export const TotalSection = styled.div`
     font-size: 2.2rem;
     font-weight: bold;
     margin: 0;
+  }
+`;
+export const PaymentModalContainer = styled.div`
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 30px;
+  width: 1200px;
+  max-width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -45%);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+  }
+`;
+
+// 🔹 Campo de Pagamento
+export const PaymentInput = styled.input`
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-top: 5px;
+  background-color: #f8f9fa;
+  outline: none;
+  transition: border 0.2s;
+
+  &:focus {
+    border: 1px solid #007bff;
+  }
+`;
+
+// 🔹 Select do Método de Pagamento
+export const PaymentSelect = styled.select`
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-top: 5px;
+  outline: none;
+  transition: border 0.2s;
+
+  &:focus {
+    border: 1px solid #007bff;
+  }
+`;
+
+// 🔹 Lista de Pagamentos
+export const PaymentHistoryList = styled.ul`
+  list-style: none;
+  padding: 0;
+  font-size: 1.1rem;
+  color: #555;
+
+  li {
+    margin-bottom: 5px;
+    strong {
+      color: #007bff;
+    }
+  }
+`;
+
+// 🔹 Histórico de Pagamento
+export const PaymentHistoryContainer = styled.div`
+  margin-top: 20px;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+`;
+
+// 🔹 Texto do Histórico
+export const PaymentHistoryText = styled.h3`
+  font-size: 1.4rem;
+  color: #333;
+  margin-bottom: 10px;
+`;
+
+// 🔹 Título do Modal
+export const ModalTitle = styled.h2`
+  font-size: 1.8rem;
+  color: #333;
+  text-align: center;
+  margin-bottom: 15px;
+`;
+
+// 🔹 Botões de Ação
+export const ActionButton = styled.button`
+  flex: 1;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 8px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  background-color: ${(props) =>
+    props.variant === "confirm"
+      ? "#28a745"
+      : props.variant === "finalize"
+      ? "#007bff"
+      : "#dc3545"};
+
+  &:hover {
+    filter: brightness(90%);
   }
 `;
 
@@ -479,7 +609,7 @@ export const ModalOverlay = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(1, 1, 1, 0.9);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -596,25 +726,13 @@ export const HighlightedProduct = styled.div`
 
 
 
+// 🔹 Container do Total
 export const TotalContainer = styled.div`
-  color: white;
-  font-size: 2.2rem;
-  font-weight: bold;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
   text-align: center;
-  border-radius: 12px;
-  padding: 10px;
-
-  span {
-    display: block;
-    margin-top: 10px;
-    color: #ffeb3b;
-    font-size: 1.5rem;
-  }
-
-  h3 {
-    margin: 0;
-    font-size: 3rem; /* Maior destaque para o total */
-  }
+  margin-bottom: 15px;
 `;
 
 export const ProductTable = styled.div`
@@ -797,19 +915,12 @@ button {
 `;
 
 
-export const TotalDisplay = styled.div`
-  background: linear-gradient(145deg, #102c57, #0056b3);
-  color: #ffffff;
-  font-size: 3rem;
+// 🔹 Texto do Total
+export const TotalDisplay = styled.p`
+  font-size: 1.5rem;
   font-weight: bold;
-  text-align: center;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-
+  color: #333;
   span {
-    margin-top: 10px;
-    color: #ffcc00;
-    font-size: 1.5rem;
+    color: #28a745;
   }
 `;
