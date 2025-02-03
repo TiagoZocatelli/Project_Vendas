@@ -22,6 +22,7 @@ import {
   ConfirmButton,
   ConfirmCancelButton,
 } from "../../../styles/utils";
+import InputMask from "react-input-mask";
 
 const Operadores = () => {
   const [operadores, setOperadores] = useState([]);
@@ -43,11 +44,11 @@ const Operadores = () => {
 
 
 
-    // 🔹 Exibe uma notificação
-    const showMessage = (type, text) => {
-      setNotification({ type, text });
-      setTimeout(() => setNotification({ type: "", text: "" }), 3000); // Remove após 3s
-    }
+  // 🔹 Exibe uma notificação
+  const showMessage = (type, text) => {
+    setNotification({ type, text });
+    setTimeout(() => setNotification({ type: "", text: "" }), 3000); // Remove após 3s
+  }
 
   // 🔹 Carrega operadores da API
   useEffect(() => {
@@ -147,11 +148,17 @@ const Operadores = () => {
     setConfirmEdit(null);
   };
 
+  const formatCPF = (cpf) => {
+    if (!cpf || cpf.length !== 11) return cpf; // Verifica se o CPF é válido
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  };
+  
+
   return (
     <Container>
 
-          {/* Notificações */}
-          {notification.text && (
+      {/* Notificações */}
+      {notification.text && (
         <Notification type={notification.type}>{notification.text}</Notification>
       )}
       <Title>Gerenciar Operadores</Title>
@@ -177,7 +184,7 @@ const Operadores = () => {
             <TableRow key={operador.id}>
               <TableCell>{operador.id}</TableCell>
               <TableCell>{operador.nome}</TableCell>
-              <TableCell>{operador.cpf}</TableCell>
+              <TableCell>{formatCPF(operador.cpf)}</TableCell>
               <TableCell>{operador.email}</TableCell>
               <TableCell>{operador.cargo}</TableCell>
               <TableCell>
@@ -200,7 +207,21 @@ const Operadores = () => {
             <ModalTitle>{editId ? "Editar Operador" : "Cadastrar Operador"}</ModalTitle>
             <form onSubmit={handleSubmit}>
               <Input type="text" name="nome" placeholder="Nome" value={formData.nome} onChange={handleChange} required />
-              <Input type="text" name="cpf" placeholder="CPF" value={formData.cpf} onChange={handleChange} required />
+              <InputMask
+                mask="999.999.999-99"
+                value={formData.cpf}
+                onChange={handleChange}
+              >
+                {(inputProps) => (
+                  <Input
+                    {...inputProps}
+                    type="text"
+                    name="cpf"
+                    placeholder="CPF"
+                    required
+                  />
+                )}
+              </InputMask>
               <Input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
               <Input type="password" name="senha" placeholder="Senha" value={formData.senha} onChange={handleChange} required={!editId} />
 

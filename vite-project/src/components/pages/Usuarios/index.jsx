@@ -1,28 +1,10 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import {Container,Table} from '../../../styles/utils'
+import { ActionIcon, ConfirmButton, ConfirmCancelButton, Container, Select, Table } from '../../../styles/utils';
+import { FaEdit, FaPlus, FaTrash } from "react-icons/fa";
+import InputMask from "react-input-mask";
+
 // Estilização dos componentes
-
-const Button = styled.button`
-  padding: 8px 12px;
-  margin: 5px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  color: white;
-
-  ${(props) =>
-    props.variant === "edit"
-      ? "background-color: #f39c12;"
-      : props.variant === "delete"
-      ? "background-color: #e74c3c;"
-      : "background-color: #2ecc71;"}
-
-  &:hover {
-    opacity: 0.8;
-  }
-`;
-
 const Modal = styled.div`
   position: fixed;
   top: 0;
@@ -38,7 +20,7 @@ const Modal = styled.div`
 const ModalContent = styled.div`
   background: white;
   padding: 20px;
-  width: 400px;
+  width: 550px;
   border-radius: 8px;
 `;
 
@@ -50,23 +32,34 @@ const Input = styled.input`
   border-radius: 4px;
 `;
 
+const BotoesContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+`;
+
+
+
 const UsuariosGerenciamento = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState("add"); // "add" ou "edit"
   const [selectedUser, setSelectedUser] = useState(null);
+  const [filiais, setFiliais] = useState([]);
+  const [niveis, setNiveis] = useState([]);
   const [formData, setFormData] = useState({
     nome: "",
     cpf: "",
     email: "",
     senha: "",
-    cargo: "",
     filial_id: "",
     nivel_acesso_id: "",
   });
 
-  // 🔹 Carregar usuários ao abrir a página
+  // 🔹 Carregar usuários, filiais e níveis ao abrir a página
   useEffect(() => {
+    fetchFiliais();
+    fetchNiveis();
     fetchUsuarios();
   }, []);
 
@@ -80,6 +73,27 @@ const UsuariosGerenciamento = () => {
     }
   };
 
+  const fetchFiliais = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/filiais");
+      const data = await response.json();
+      setFiliais(data);
+    } catch (error) {
+      console.error("Erro ao buscar filiais", error);
+    }
+  };
+
+  const fetchNiveis = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/niveis_acesso");
+      const data = await response.json();
+      setNiveis(data);
+      console.log(data)
+    } catch (error) {
+      console.error("Erro ao buscar níveis de acesso", error);
+    }
+  };
+
   // 🔹 Abrir Modal para Adicionar ou Editar Usuário
   const openModal = (type, user = null) => {
     setModalType(type);
@@ -90,7 +104,6 @@ const UsuariosGerenciamento = () => {
         cpf: "",
         email: "",
         senha: "",
-        cargo: "",
         filial_id: "",
         nivel_acesso_id: "",
       }
@@ -108,22 +121,41 @@ const UsuariosGerenciamento = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔹 Criar ou Atualizar Usuário
+  const removeMask = (value) => value.replace(/\D/g, ""); // Remove tudo que não for número
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+  
+    // 🔹 Remove máscara do CPF antes de enviar
+    const dataToSend = {
+      ...formData,
+      cpf: removeMask(formData.cpf),
+    };
+  
+    // 🔹 Validação antes de enviar
+    const requiredFields = ["nome", "cpf", "email", "senha", "filial_id", "nivel_acesso_id"];
+    const missingFields = requiredFields.filter(field => !dataToSend[field]);
+  
+    if (missingFields.length > 0) {
+      console.error("⚠️ Campos faltando no frontend:", missingFields);
+      return;
+    }
+  
+    console.log("📌 Enviando para API:", dataToSend);
+  
     const url =
       modalType === "add"
         ? "http://localhost:5000/usuarios"
         : `http://localhost:5000/usuarios/${selectedUser.id}`;
     const method = modalType === "add" ? "POST" : "PUT";
-
+  
     try {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
-
+  
       if (response.ok) {
         fetchUsuarios();
         closeModal();
@@ -134,6 +166,8 @@ const UsuariosGerenciamento = () => {
       console.error("Erro ao conectar ao servidor", error);
     }
   };
+  
+
 
   // 🔹 Excluir Usuário
   const handleDelete = async (id) => {
@@ -154,10 +188,18 @@ const UsuariosGerenciamento = () => {
     }
   };
 
+  const formatCPF = (cpf) => {
+    if (!cpf || cpf.length !== 11) return cpf; // Verifica se o CPF é válido
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  };
+  
+
   return (
     <Container>
       <h1>Gerenciamento de Usuários</h1>
-      <Button onClick={() => openModal("add")}>Adicionar Usuário</Button>
+      <ConfirmButton onClick={() => openModal("add")}>
+        <FaPlus /> Adicionar Usuário
+      </ConfirmButton>
 
       <Table>
         <thead>
@@ -166,7 +208,6 @@ const UsuariosGerenciamento = () => {
             <th>Nome</th>
             <th>CPF</th>
             <th>Email</th>
-            <th>Cargo</th>
             <th>Filial</th>
             <th>Nível</th>
             <th>Ações</th>
@@ -177,18 +218,18 @@ const UsuariosGerenciamento = () => {
             <tr key={user.id}>
               <td>{user.id}</td>
               <td>{user.nome}</td>
-              <td>{user.cpf}</td>
+              <td>{formatCPF(user.cpf)}</td>
               <td>{user.email}</td>
-              <td>{user.cargo}</td>
               <td>{user.filial}</td>
               <td>{user.nivel_acesso}</td>
               <td>
-                <Button variant="edit" onClick={() => openModal("edit", user)}>
-                  Editar
-                </Button>
-                <Button variant="delete" onClick={() => handleDelete(user.id)}>
-                  Excluir
-                </Button>
+                <ActionIcon variant="edit" onClick={() => openModal("edit", user)}>
+                  <FaEdit size={16} style={{ color: "#FF9800" }} />
+                </ActionIcon>
+
+                <ActionIcon variant="delete" onClick={() => handleDelete(user.id)}>
+                  <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                </ActionIcon>
               </td>
             </tr>
           ))}
@@ -202,14 +243,37 @@ const UsuariosGerenciamento = () => {
             <h2>{modalType === "add" ? "Adicionar Usuário" : "Editar Usuário"}</h2>
             <form onSubmit={handleSubmit}>
               <Input type="text" name="nome" placeholder="Nome" value={formData.nome} onChange={handleInputChange} required />
-              <Input type="text" name="cpf" placeholder="CPF" value={formData.cpf} onChange={handleInputChange} required />
+              <InputMask
+                mask="999.999.999-99"
+                value={formData.cpf}
+                onChange={handleInputChange}
+              >
+                {(inputProps) => <Input {...inputProps} name="cpf" placeholder="CPF" required />}
+              </InputMask>
               <Input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleInputChange} required />
               <Input type="password" name="senha" placeholder="Senha" value={formData.senha} onChange={handleInputChange} required />
-              <Input type="text" name="cargo" placeholder="Cargo" value={formData.cargo} onChange={handleInputChange} required />
-              <Input type="number" name="filial_id" placeholder="ID Filial" value={formData.filial_id} onChange={handleInputChange} required />
-              <Input type="number" name="nivel_acesso_id" placeholder="ID Nível Acesso" value={formData.nivel_acesso_id} onChange={handleInputChange} required />
-              <Button type="submit">Salvar</Button>
-              <Button variant="delete" onClick={closeModal}>Cancelar</Button>
+
+
+              <BotoesContainer>
+                <Select name="filial_id" value={formData.filial_id} onChange={handleInputChange} required>
+                  <option value="">Selecione a Filial</option>
+                  {filiais.map((filial) => (
+                    <option key={filial.id} value={filial.id}>{filial.nome}</option>
+                  ))}
+                </Select>
+
+                <Select name="nivel_acesso_id" value={formData.nivel_acesso_id} onChange={handleInputChange} required>
+                  <option value="">Selecione o Nível</option>
+                  {niveis.map((nivel) => (
+                    <option key={nivel.id} value={nivel.id}>{nivel.nivel}</option>
+                  ))}
+                </Select>
+              </BotoesContainer>
+              <BotoesContainer>
+                <ConfirmButton type="submit">Salvar</ConfirmButton>
+                <ConfirmCancelButton onClick={closeModal}>Cancelar</ConfirmCancelButton>
+              </BotoesContainer>
+
             </form>
           </ModalContent>
         </Modal>

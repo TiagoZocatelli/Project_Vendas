@@ -8,14 +8,18 @@ import {
   TableCell,
   Button,
   SearchBar,
-  Notification
+  Notification,
+  Select
 } from "../../../styles/utils";
-import {ModalOverlay,
+import {
+  ModalOverlay,
   ModalActions,
   ModalContent,
   FormContainer,
   FormGroup,
-  DivHeader} from './styles'
+  DivHeader
+} from './styles'
+import InputMask from "react-input-mask";
 
 const Clientes = () => {
   const [clients, setClients] = useState([]);
@@ -30,6 +34,36 @@ const Clientes = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [notification, setNotification] = useState({ type: "", text: "" });
+
+  const estadosBrasil = [
+    { sigla: "AC", nome: "Acre" },
+    { sigla: "AL", nome: "Alagoas" },
+    { sigla: "AP", nome: "Amapá" },
+    { sigla: "AM", nome: "Amazonas" },
+    { sigla: "BA", nome: "Bahia" },
+    { sigla: "CE", nome: "Ceará" },
+    { sigla: "DF", nome: "Distrito Federal" },
+    { sigla: "ES", nome: "Espírito Santo" },
+    { sigla: "GO", nome: "Goiás" },
+    { sigla: "MA", nome: "Maranhão" },
+    { sigla: "MT", nome: "Mato Grosso" },
+    { sigla: "MS", nome: "Mato Grosso do Sul" },
+    { sigla: "MG", nome: "Minas Gerais" },
+    { sigla: "PA", nome: "Pará" },
+    { sigla: "PB", nome: "Paraíba" },
+    { sigla: "PR", nome: "Paraná" },
+    { sigla: "PE", nome: "Pernambuco" },
+    { sigla: "PI", nome: "Piauí" },
+    { sigla: "RJ", nome: "Rio de Janeiro" },
+    { sigla: "RN", nome: "Rio Grande do Norte" },
+    { sigla: "RS", nome: "Rio Grande do Sul" },
+    { sigla: "RO", nome: "Rondônia" },
+    { sigla: "RR", nome: "Roraima" },
+    { sigla: "SC", nome: "Santa Catarina" },
+    { sigla: "SP", nome: "São Paulo" },
+    { sigla: "SE", nome: "Sergipe" },
+    { sigla: "TO", nome: "Tocantins" }
+  ];
 
   const showMessage = (type, text) => {
     setNotification({ type, text });
@@ -46,6 +80,8 @@ const Clientes = () => {
         email: client.email || "",
         phone: client.telefone || "",
         address: client.endereco || "",
+        estado: client.estado || "",
+        cidade: client.cidade || ""
       }));
       setClients(formattedClients);
     } catch (error) {
@@ -53,6 +89,7 @@ const Clientes = () => {
       console.error("Erro ao buscar clientes:", error);
     }
   };
+
 
   useEffect(() => {
     fetchClients();
@@ -70,6 +107,8 @@ const Clientes = () => {
         email: "",
         phone: "",
         address: "",
+        estado: "",
+        cidade: ""
       });
     }
     setIsModalOpen(true);
@@ -79,21 +118,52 @@ const Clientes = () => {
     setIsModalOpen(false);
   };
 
+
+  // 🔹 Formata CPF e CNPJ na exibição
+  const formatCpfCnpj = (value) => {
+    if (!value) return "";
+    return value.length === 11
+      ? value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") // CPF
+      : value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5"); // CNPJ
+  };
+
+  // 🔹 Formata telefone
+  const formatPhone = (phone) => {
+    if (!phone || phone.length < 10) return phone;
+    return phone.length === 10
+      ? phone.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3") // Telefone fixo
+      : phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3"); // Celular
+  };
+
+  // 🔹 Formata CEP
+  const formatCep = (cep) => {
+    if (!cep || cep.length !== 8) return cep;
+    return cep.replace(/(\d{5})(\d{3})/, "$1-$2");
+  };
+
+  // 🔹 Remove a formatação antes de enviar para API
+  const removeMask = (value) => value.replace(/\D/g, "");
+
+
   const addOrUpdateClient = async () => {
     if (
       newClient.name &&
       newClient.cpfCnpj &&
       newClient.email &&
       newClient.phone &&
-      newClient.address
+      newClient.address &&
+      newClient.estado &&
+      newClient.cidade
     ) {
       try {
         const payload = {
           nome: newClient.name,
-          cpf_cnpj: newClient.cpfCnpj,
+          cpf_cnpj: removeMask(newClient.cpfCnpj),
           email: newClient.email,
-          telefone: newClient.phone,
+          telefone: removeMask(newClient.phone),
           endereco: newClient.address,
+          estado: newClient.estado,
+          cidade: newClient.cidade
         };
 
         if (editingIndex !== null) {
@@ -119,6 +189,7 @@ const Clientes = () => {
       showMessage("error", "Todos os campos obrigatórios devem ser preenchidos.");
     }
   };
+  
 
   const removeClient = async (id) => {
     try {
@@ -177,17 +248,20 @@ const Clientes = () => {
                     }
                   />
                 </FormGroup>
+
                 <FormGroup>
                   <label>CPF/CNPJ:</label>
-                  <input
-                    type="text"
-                    placeholder="Digite o CPF ou CNPJ"
+                  <InputMask
+                    mask={newClient.cpfCnpj.length <= 11 ? "999.999.999-99" : "99.999.999/9999-99"}
                     value={newClient.cpfCnpj}
-                    onChange={(e) =>
-                      setNewClient({ ...newClient, cpfCnpj: e.target.value })
-                    }
-                  />
+                    onChange={(e) => setNewClient({ ...newClient, cpfCnpj: e.target.value })}
+                  >
+                    {(inputProps) => (
+                      <input {...inputProps} type="text" placeholder="Digite o CPF ou CNPJ" required />
+                    )}
+                  </InputMask>
                 </FormGroup>
+
                 <FormGroup>
                   <label>Email:</label>
                   <input
@@ -199,17 +273,47 @@ const Clientes = () => {
                     }
                   />
                 </FormGroup>
+
                 <FormGroup>
                   <label>Telefone:</label>
+                  <InputMask
+                    mask={newClient.phone.length > 10 ? "(99) 99999-9999" : "(99) 9999-9999"}
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                  >
+                    {(inputProps) => (
+                      <input {...inputProps} type="text" placeholder="Digite o telefone" required />
+                    )}
+                  </InputMask>
+                </FormGroup>
+                <FormGroup>
+                <label>Estado:</label>
+                <Select
+                  value={newClient.estado}
+                  onChange={(e) => setNewClient({ ...newClient, estado: e.target.value })}
+                  required
+                >
+                  <option value="">Selecione um Estado</option>
+                  {estadosBrasil.map((estado) => (
+                    <option key={estado.sigla} value={estado.sigla}>
+                      {estado.nome}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup>
+                  <label>Cidade:</label>
                   <input
                     type="text"
-                    placeholder="Digite o telefone"
-                    value={newClient.phone}
+                    placeholder="Digite o Cidade"
+                    value={newClient.cidade}
                     onChange={(e) =>
-                      setNewClient({ ...newClient, phone: e.target.value })
+                      setNewClient({ ...newClient, cidade: e.target.value })
                     }
                   />
                 </FormGroup>
+
                 <FormGroup>
                   <label>Endereço:</label>
                   <input
@@ -232,7 +336,6 @@ const Clientes = () => {
           </ModalContent>
         </ModalOverlay>
       )}
-
       <Table>
         <thead>
           <TableRow>
@@ -250,11 +353,10 @@ const Clientes = () => {
             <TableRow key={index}>
               <TableCell>{client.id}</TableCell>
               <TableCell>{client.name}</TableCell>
-              <TableCell>{client.cpfCnpj}</TableCell>
+              <TableCell>{formatCpfCnpj(client.cpfCnpj)}</TableCell>
               <TableCell>{client.email}</TableCell>
-              <TableCell>{client.phone}</TableCell>
+              <TableCell>{formatPhone(client.phone)}</TableCell>
               <TableCell>{client.address}</TableCell>
-
               <TableCell>
                 <Button onClick={() => openModal(index)}>Editar</Button>
                 <Button onClick={() => removeClient(client.id)}>Remover</Button>

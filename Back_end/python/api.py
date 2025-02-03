@@ -8,6 +8,7 @@ from flask_jwt_extended import JWTManager, create_access_token
 import jwt
 from flask_cors import CORS
 import bcrypt
+import re
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})  # 🔹 Permite requisições apenas do frontend
@@ -190,36 +191,66 @@ def deletar_operador(id):
     conn.close()
     return jsonify({"message": "Operador deletado!"})
 
-# 📌 1️⃣ Criar Usuário (POST)
 @app.route("/usuarios", methods=["POST"])
 def criar_usuario():
-    data = request.get_json()
-    
-    # Validação dos dados recebidos
-    if not all(k in data for k in ["nome", "cpf", "email", "senha", "cargo", "filial_id", "nivel_acesso_id"]):
-        return jsonify({"error": "Todos os campos são obrigatórios!"}), 400
-
-    senha_hash = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-    conn = get_db_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO usuarios (nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
-                """,
-                (data["nome"], data["cpf"], data["email"], senha_hash, data["cargo"], data["filial_id"], data["nivel_acesso_id"])
-            )
-            usuario_id = cur.fetchone()[0]
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": f"Erro ao cadastrar usuário: {str(e)}"}), 500
-    finally:
-        conn.close()
+        data = request.get_json()
+        print("📌 Dados Recebidos:", data)  # DEBUG
 
-    return jsonify({"message": "Usuário criado com sucesso!", "id": usuario_id}), 201
+        # 🔹 Validação dos Campos
+        required_fields = ["nome", "cpf", "email", "senha", "filial_id", "nivel_acesso_id"]
+        missing_fields = [field for field in required_fields if field not in data]
+
+        if missing_fields:
+            return jsonify({"error": "Todos os campos são obrigatórios!", "faltando": missing_fields}), 400
+
+        # 🔹 Remover pontuação do CPF
+        data["cpf"] = re.sub(r"\D", "", data["cpf"])
+
+        # 🔹 Converter `filial_id` e `nivel_acesso_id` para inteiro
+        try:
+            filial_id = int(data["filial_id"])
+            nivel_acesso_id = int(data["nivel_acesso_id"])
+        except ValueError:
+            return jsonify({"error": "Filial ID e Nível de Acesso devem ser números!"}), 400
+
+        # 🔹 Hash da senha
+        senha_hash = bcrypt.hashpw(data["senha"].encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Falha ao conectar ao banco de dados"}), 500
+
+        try:
+            with conn.cursor() as cur:
+                # 🔹 Verificar se CPF já existe
+                cur.execute("SELECT id FROM usuarios WHERE cpf = %s", (data["cpf"],))
+                if cur.fetchone():
+                    return jsonify({"error": "CPF já cadastrado!"}), 400
+
+                # 🔹 Inserir usuário
+                cur.execute(
+                    """
+                    INSERT INTO usuarios (nome, cpf, email, senha, filial_id, nivel_acesso_id) 
+                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                    """,
+                    (data["nome"], data["cpf"], data["email"], senha_hash, filial_id, nivel_acesso_id)
+                )
+                usuario_id = cur.fetchone()[0]
+                conn.commit()
+
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Erro no banco de dados: {str(e)}")  # DEBUG NO TERMINAL
+            return jsonify({"error": f"Erro ao cadastrar usuário: {str(e)}"}), 500
+        finally:
+            conn.close()
+
+        return jsonify({"message": "Usuário criado com sucesso!", "id": usuario_id}), 201
+
+    except Exception as e:
+        print(f"❌ Erro inesperado: {str(e)}")  # DEBUG NO TERMINAL
+        return jsonify({"error": f"Erro inesperado: {str(e)}"}), 500
 
 
 # 📌 2️⃣ Buscar Usuários (GET)
@@ -229,7 +260,7 @@ def listar_usuarios():
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT u.id, u.nome, u.cpf, u.email, u.cargo, f.nome AS filial, n.nivel
+                SELECT u.id, u.nome, u.cpf, u.email, f.nome AS filial, n.nivel
                 FROM usuarios u
                 LEFT JOIN filiais f ON u.filial_id = f.id
                 LEFT JOIN niveis_acesso n ON u.nivel_acesso_id = n.id
@@ -240,7 +271,7 @@ def listar_usuarios():
             resultado = [
                 {
                     "id": u[0], "nome": u[1], "cpf": u[2], "email": u[3],
-                    "cargo": u[4], "filial": u[5], "nivel_acesso": u[6]
+                    "filial": u[4], "nivel_acesso": u[5]
                 }
                 for u in usuarios
             ]
@@ -465,6 +496,19 @@ def listar_filiais():
         conn = get_db_connection()
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM filiais")
+            filiais = cur.fetchall()
+            colnames = [desc[0] for desc in cur.description]
+            results = [dict(zip(colnames, row)) for row in filiais]
+        return jsonify(results)  # Retorna os dados como JSON
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/niveis_acesso", methods=["GET"])
+def listar_niveis_acesso():
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM niveis_acesso")
             filiais = cur.fetchall()
             colnames = [desc[0] for desc in cur.description]
             results = [dict(zip(colnames, row)) for row in filiais]
@@ -716,17 +760,19 @@ def criar_cliente():
             if cur.fetchone():
                 return jsonify({"error": "CPF/CNPJ já está cadastrado."}), 400
 
-            # Inserir o novo cliente
             cur.execute("""
-                INSERT INTO clientes (nome, cpf_cnpj, endereco, telefone, email)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO clientes (nome, cpf_cnpj, endereco, telefone, email, cidade, estado)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
             """, (
                 data["nome"],
                 data["cpf_cnpj"],
-                data.get("endereco"),
-                data.get("telefone"),
-                data.get("email")
+                data.get("endereco", ""),
+                data.get("telefone", ""),
+                data.get("email", ""),
+                data.get("cidade", "Desconhecido"),
+                data.get("estado", "XX")  # "XX" para estados desconhecidos
             ))
+
             cliente_id = cur.fetchone()[0]
             conn.commit()
         return jsonify({"message": "Cliente criado com sucesso.", "id": cliente_id}), 201

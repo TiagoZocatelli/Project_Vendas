@@ -47,6 +47,26 @@ export const Input = styled.input`
   background: transparent;
 `;
 
+export const FixedButton = styled.button`
+position: fixed;
+top: 10px;
+left: 10px;
+padding: 10px 20px;
+font-size: 16px;
+cursor: pointer;
+border: none;
+border-radius: 5px;
+background-color: #102C57;
+color: white;
+transition: 0.3s;
+z-index: 1000;
+
+&:hover {
+  background-color: #081A3A;
+}
+`;
+
+
 export const Button = styled.button`
   width: 100%;
   padding: 12px;

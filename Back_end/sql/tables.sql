@@ -88,10 +88,13 @@ CREATE TABLE clientes (
     email VARCHAR(255),
     telefone VARCHAR(20),
     endereco TEXT,
+    cidade VARCHAR(100), -- 🔹 Adiciona o campo para armazenar a cidade
+    estado VARCHAR(2), -- 🔹 Adiciona o campo para armazenar a sigla do estado (ex: SP, RJ)
     ativo BOOLEAN DEFAULT TRUE, -- Status do cliente
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- Atualizar a tabela 'entradas' para incluir a filial
 CREATE TABLE entradas (
@@ -128,7 +131,6 @@ CREATE TABLE usuarios (
     cpf VARCHAR(14) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     senha TEXT NOT NULL,
-    cargo VARCHAR(50) NOT NULL,
     filial_id INT REFERENCES filiais(id) ON DELETE SET NULL,
     nivel_acesso_id INT REFERENCES niveis_acesso(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

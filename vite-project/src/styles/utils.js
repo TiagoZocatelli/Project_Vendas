@@ -152,6 +152,7 @@ export const ConfirmCancelButton = styled.button`
 export const ConfirmButton = styled(ConfirmCancelButton)`
   background: #0056b3; /* Cinza claro */
   color: #ffffff; /* Cinza escuro para texto */
+  margin-right: 8px;
 
   &:hover {
     background:rgb(3, 67, 136); /* Cinza médio no hover */

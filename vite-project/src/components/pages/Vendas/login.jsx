@@ -9,6 +9,7 @@ import {
   Input,
   Button,
   ErrorMessage,
+  FixedButton,
 } from "./loginStyles";
 
 const LoginPDV = () => {
@@ -45,6 +46,7 @@ const LoginPDV = () => {
 
   return (
     <Container>
+      <FixedButton onClick={() => navigate("/home")}>← Voltar</FixedButton>
       <LoginBox>
         <h2>Login no PDV</h2>
         {error && <ErrorMessage>{error}</ErrorMessage>}

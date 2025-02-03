@@ -24,9 +24,12 @@ import {
   ConfirmButton,
   ConfirmCancelButton,
   ConfirmButtonContainer,
+  Select,
+  Input,
 } from "../../../styles/utils";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import api from "../../../api";
+import InputMask from "react-input-mask";
 
 const Fornecedores = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -46,6 +49,8 @@ const Fornecedores = () => {
   const [notification, setNotification] = useState({ type: "", text: "" });
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [documentType, setDocumentType] = useState(""); // CPF ou CNPJ
+
 
   const showMessage = (type, text) => {
     setNotification({ type, text });
@@ -62,6 +67,7 @@ const Fornecedores = () => {
   }, []);
 
   const fetchSuppliers = async () => {
+
     try {
       const response = await api.get("/fornecedores");
       const formattedSuppliers = response.data.map((supplier) => ({
@@ -106,68 +112,108 @@ const Fornecedores = () => {
     setIsModalOpen(false);
   };
 
+  const formatCPF = (cpf) => {
+    if (!cpf || cpf.length !== 11) return cpf; // Verifica se o CPF é válido
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  };
+
+  const formatPhone = (phone) => {
+    if (!phone) return phone;
+    
+    // Remover caracteres não numéricos
+    phone = phone.replace(/\D/g, "");
+  
+    // Formato para telefone fixo (ex: (44) 3222-1234)
+    if (phone.length === 10) {
+      return phone.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+    }
+  
+    // Formato para celular (ex: (44) 99897-1234)
+    if (phone.length === 11) {
+      return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    }
+  
+    return phone; // Retorna o número sem formatação se não corresponder
+  };
+
+  const formatCEP = (cep) => {
+    if (!cep || cep.length !== 8) return cep; // Verifica se o CEP é válido
+    return cep.replace(/(\d{5})(\d{3})/, "$1-$2");
+  };
+  
+  
+
+  const removeMask = (value) => value.replace(/\D/g, ""); // Remove tudo que não for número
+
   const addOrUpdateSupplier = async () => {
-    if (
-      newSupplier.name &&
-      newSupplier.cnpj &&
-      newSupplier.email &&
-      newSupplier.phone &&
-      newSupplier.address &&
-      newSupplier.estado &&
-      newSupplier.cidade &&
-      newSupplier.cep
-    ) {
-      try {
-        const payload = {
-          nome: newSupplier.name,
-          cnpj: newSupplier.cnpj,
-          telefone: newSupplier.phone,
-          endereco: newSupplier.address,
-          email: newSupplier.email,
-          estado: newSupplier.estado,
-          cidade: newSupplier.cidade,
-          cep: newSupplier.cep,
-        };
+    console.log("📌 Dados do formulário antes da validação:", newSupplier);
 
-        if (editingIndex !== null) {
-          const supplierToUpdate = suppliers[editingIndex];
-          await api.put(
-            `/fornecedores/${supplierToUpdate.id}`,
-            payload
-          );
-          showMessage("success", "Fornecedor atualizado com sucesso!");
-          closeModal();
-        } else {
-          await api.post("/fornecedores", payload);
-          showMessage("success", "Fornecedor cadastrado com sucesso!");
-          closeModal();
-        }
+    // Verifica se todos os campos obrigatórios estão preenchidos corretamente
+    const requiredFields = [
+      "name",
+      "cnpj",
+      "email",
+      "phone",
+      "address",
+      "estado",
+      "cidade",
+      "cep",
+    ];
 
-        fetchSuppliers();
-        setNewSupplier({
-          name: "",
-          cnpj: "",
-          email: "",
-          phone: "",
-          address: "",
-          estado: "",
-          cidade: "",
-          cep: "",
-        });
-        setEditingIndex(null);
-      } catch (error) {
-        const errorMessage =
-          error.response?.data?.error || "Erro ao salvar fornecedor.";
-        showMessage("error", errorMessage);
+    const isEmpty = requiredFields.some((field) => {
+      console.log(`🔍 Verificando campo "${field}":`, newSupplier[field]);
+      return !newSupplier[field] || newSupplier[field].trim() === "";
+    });
+
+    if (isEmpty) {
+      showMessage("error", "Todos os campos obrigatórios devem ser preenchidos.");
+      console.error("🚨 ERRO: Algum campo obrigatório está vazio!", newSupplier);
+      return;
+    }
+
+    try {
+      const payload = {
+        nome: newSupplier.name,
+        cnpj: removeMask(newSupplier.cnpj),  // 🔹 Remove pontuação do CNPJ
+        telefone: removeMask(newSupplier.phone),  // 🔹 Remove pontuação do telefone
+        endereco: newSupplier.address,
+        email: newSupplier.email,
+        estado: newSupplier.estado,
+        cidade: newSupplier.cidade,
+        cep: removeMask(newSupplier.cep),  // 🔹 Remove pontuação do CEP
+      };
+
+      console.log("📌 Payload enviado para API:", payload);
+
+      if (editingIndex !== null) {
+        const supplierToUpdate = suppliers[editingIndex];
+        await api.put(`/fornecedores/${supplierToUpdate.id}`, payload);
+        showMessage("success", "Fornecedor atualizado com sucesso!");
+      } else {
+        await api.post("/fornecedores", payload);
+        showMessage("success", "Fornecedor cadastrado com sucesso!");
       }
-    } else {
-      showMessage(
-        "error",
-        "Todos os campos obrigatórios devem ser preenchidos."
-      );
+
+      fetchSuppliers();
+      setNewSupplier({
+        name: "",
+        cnpj: "",
+        email: "",
+        phone: "",
+        address: "",
+        estado: "",
+        cidade: "",
+        cep: "",
+      });
+      setEditingIndex(null);
       closeModal();
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || "Erro ao salvar fornecedor.";
+      showMessage("error", errorMessage);
+      console.error("🚨 Erro na API:", error);
     }
   };
+
 
   const editSupplier = (index) => {
     openModal(index);
@@ -251,23 +297,45 @@ const Fornecedores = () => {
                   <input
                     type="text"
                     placeholder="Digite o nome"
-                    value={newSupplier.name}
+                    value={newSupplier.name || ""}  // ✅ Garante que o campo nunca será undefined
                     onChange={(e) =>
                       setNewSupplier({ ...newSupplier, name: e.target.value })
                     }
+                    required
                   />
                 </FormGroup>
+
                 <FormGroup>
-                  <label>CNPJ:</label>
-                  <input
-                    type="text"
-                    placeholder="Digite o CNPJ"
-                    value={newSupplier.cnpj}
-                    onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, cnpj: e.target.value })
-                    }
-                  />
+                  <label>Selecione o tipo de documento:</label>
+                  <Select
+                    value={documentType}
+                    onChange={(e) => {
+                      setDocumentType(e.target.value);
+                      setNewSupplier({ cnpj: "" }); // Reseta o campo ao mudar de tipo
+                    }}
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="cpf">CPF</option>
+                    <option value="cnpj">CNPJ</option>
+                  </Select>
                 </FormGroup>
+
+                {documentType && (
+                  <FormGroup>
+                    <label>{documentType === "cpf" ? "CPF" : "CNPJ"}:</label>
+                    <InputMask
+                      mask={documentType === "cpf" ? "999.999.999-99" : "99.999.999/9999-99"}
+                      value={newSupplier.cnpj}
+                      onChange={(e) => setNewSupplier({ cnpj: e.target.value })}
+                    >
+                      {(inputProps) => (
+                        <Input {...inputProps} type="text" placeholder={`Digite o ${documentType.toUpperCase()}`} required />
+                      )}
+                    </InputMask>
+                  </FormGroup>
+                )}
+
+
                 <FormGroup>
                   <label>Email:</label>
                   <input
@@ -281,14 +349,13 @@ const Fornecedores = () => {
                 </FormGroup>
                 <FormGroup>
                   <label>Telefone:</label>
-                  <input
-                    type="text"
-                    placeholder="Digite o telefone"
+                  <InputMask
+                    mask="(99) 99999-9999"
                     value={newSupplier.phone}
-                    onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, phone: e.target.value })
-                    }
-                  />
+                    onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
+                  >
+                    {(inputProps) => <input {...inputProps} type="text" placeholder="Digite o telefone" required />}
+                  </InputMask>
                 </FormGroup>
                 <FormGroup>
                   <label>Endereço:</label>
@@ -306,14 +373,41 @@ const Fornecedores = () => {
                 </FormGroup>
                 <FormGroup>
                   <label>Estado:</label>
-                  <input
-                    type="text"
-                    placeholder="Digite o estado"
+                  <Select
                     value={newSupplier.estado}
                     onChange={(e) =>
                       setNewSupplier({ ...newSupplier, estado: e.target.value })
                     }
-                  />
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="AC">Acre</option>
+                    <option value="AL">Alagoas</option>
+                    <option value="AM">Amazonas</option>
+                    <option value="BA">Bahia</option>
+                    <option value="CE">Ceará</option>
+                    <option value="DF">Distrito Federal</option>
+                    <option value="ES">Espírito Santo</option>
+                    <option value="GO">Goiás</option>
+                    <option value="MA">Maranhão</option>
+                    <option value="MT">Mato Grosso</option>
+                    <option value="MS">Mato Grosso do Sul</option>
+                    <option value="MG">Minas Gerais</option>
+                    <option value="PA">Pará</option>
+                    <option value="PB">Paraíba</option>
+                    <option value="PR">Paraná</option>
+                    <option value="PE">Pernambuco</option>
+                    <option value="PI">Piauí</option>
+                    <option value="RJ">Rio de Janeiro</option>
+                    <option value="RN">Rio Grande do Norte</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="RO">Rondônia</option>
+                    <option value="RR">Roraima</option>
+                    <option value="SC">Santa Catarina</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="SE">Sergipe</option>
+                    <option value="TO">Tocantins</option>
+                  </Select>
                 </FormGroup>
                 <FormGroup>
                   <label>Cidade:</label>
@@ -328,14 +422,13 @@ const Fornecedores = () => {
                 </FormGroup>
                 <FormGroup>
                   <label>CEP:</label>
-                  <input
-                    type="text"
-                    placeholder="Digite o CEP"
+                  <InputMask
+                    mask="99999-999"
                     value={newSupplier.cep}
-                    onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, cep: e.target.value })
-                    }
-                  />
+                    onChange={(e) => setNewSupplier({ ...newSupplier, cep: e.target.value })}
+                  >
+                    {(inputProps) => <input {...inputProps} type="text" placeholder="Digite o CEP" required />}
+                  </InputMask>
                 </FormGroup>
               </FormContainer>
             </form>
@@ -369,13 +462,13 @@ const Fornecedores = () => {
             <TableRow key={index}>
               <TableCell>{supplier.id}</TableCell>
               <TableCell>{supplier.name}</TableCell>
-              <TableCell>{supplier.cnpj}</TableCell>
+              <TableCell>{formatCPF(supplier.cnpj)}</TableCell>
               <TableCell>{supplier.email}</TableCell>
-              <TableCell>{supplier.phone}</TableCell>
+              <TableCell>{formatPhone(supplier.phone)}</TableCell>
               <TableCell>{supplier.address}</TableCell>
               <TableCell>{supplier.estado}</TableCell>
               <TableCell>{supplier.cidade}</TableCell>
-              <TableCell>{supplier.cep}</TableCell>
+              <TableCell>{formatCEP(supplier.cep)}</TableCell>
 
               <TableCell>
                 <ActionIcon onClick={() => editSupplier(index)}>
