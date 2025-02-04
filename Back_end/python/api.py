@@ -13,6 +13,7 @@ from flask_cors import CORS
 import bcrypt
 import re
 from datetime import datetime
+from psycopg2.extras import RealDictCursor
 
 
 app = Flask(__name__)
@@ -716,10 +717,12 @@ def reimprimir_venda():
     conn = get_db_connection()
 
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # 🔹 Buscar informações da venda
             cur.execute("""
-                SELECT pedido_id, operador_id, cliente, filial_id, total, troco
+                SELECT pedido_id, operador_id, cliente, filial_id, 
+                       COALESCE(total, 0.0) AS total, 
+                       COALESCE(troco, 0.0) AS troco
                 FROM vendas
                 WHERE id = %s
             """, (venda_id,))
@@ -728,18 +731,24 @@ def reimprimir_venda():
             if not venda:
                 return jsonify({"error": "Venda não encontrada"}), 404
 
-            # 🔹 Buscar itens da venda
+            # 🔹 Buscar itens da venda **com a descrição do produto**
             cur.execute("""
-                SELECT vi.produto_id, vi.quantidade, vi.preco_unitario, vi.desconto, p.descpro01 AS descricao
+                SELECT vi.produto_id, 
+                       COALESCE(vi.quantidade, 0.0) AS quantidade, 
+                       COALESCE(vi.preco_unitario, 0.0) AS preco_unitario, 
+                       COALESCE(vi.desconto, 0.0) AS desconto, 
+                       COALESCE(p.nome, 'Descrição não encontrada') AS descricao
                 FROM vendas_itens vi
-                JOIN produtos p ON vi.produto_id = p.codpro01
+                LEFT JOIN produtos p ON vi.produto_id = p.id  -- ✅ Busca a descrição do produto baseado no ID
                 WHERE vi.venda_id = %s
             """, (venda_id,))
             itens = cur.fetchall()
 
             # 🔹 Buscar pagamentos da venda
             cur.execute("""
-                SELECT vp.forma_pagamento_id, vp.valor, vp.troco
+                SELECT vp.forma_pagamento_id, 
+                       COALESCE(vp.valor, 0.0) AS valor, 
+                       COALESCE(vp.troco, 0.0) AS troco
                 FROM vendas_pagamento vp
                 WHERE vp.venda_id = %s
             """, (venda_id,))
@@ -748,16 +757,29 @@ def reimprimir_venda():
             # 🔹 Buscar dados da filial
             filial_dados = buscar_dados_filial(venda["filial_id"], conn)
 
-        # ✅ Gerar o cupom fiscal como reimpressão
+        # ✅ Garantir que todos os valores sejam numéricos antes de passar para `float()`
+        total_venda = float(venda["total"])
+        troco_total = float(venda["troco"])
+
+        for item in itens:
+            item["quantidade"] = float(item["quantidade"])
+            item["preco_unitario"] = float(item["preco_unitario"])
+            item["desconto"] = float(item["desconto"])
+
+        for pagamento in pagamentos:
+            pagamento["valor"] = float(pagamento["valor"])
+            pagamento["troco"] = float(pagamento["troco"])
+
+        # ✅ Gerar o cupom fiscal sem erro de NoneType
         pdf_bytes = gerar_pdf(
             venda_id=venda_id,
             cliente=venda["cliente"],
-            total_venda=venda["total"],
-            troco_total=venda["troco"],
+            total_venda=total_venda,
+            troco_total=troco_total,
             itens=itens,
             pagamentos=pagamentos,
             filial_dados=filial_dados,
-            reimpressao=True  # 🔹 Indica que é uma reimpressão
+            reimpressao=True
         )
 
         pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode("utf-8")
@@ -768,12 +790,11 @@ def reimprimir_venda():
         }), 200
 
     except Exception as e:
-        print("❌ Erro ao reimprimir venda:", str(e))
+        print("Erro ao reimprimir venda:", str(e))
         return jsonify({"error": str(e)}), 500
 
     finally:
         conn.close()
-
 
 @app.route("/vendas", methods=["GET"])
 def listar_vendas():

@@ -424,10 +424,10 @@ const PDV = () => {
       showMessage("Nenhum cupom selecionado.", "warning");
       return;
     }
-
+  
     for (let receiptId of selectedReceipts) {
       try {
-        const response = await api.get(`/vendas/${receiptId}/reimprimir`);
+        const response = await api.post(`/reimprimir_venda`, { venda_id: receiptId }); // Enviando no corpo da requisição
         if (response.status === 200) {
           downloadPDF(response.data.cupom_fiscal_pdf, `CupomFiscal_${receiptId}.pdf`);
         } else {
@@ -437,10 +437,11 @@ const PDV = () => {
         showMessage(`Erro ao reimprimir cupom ${receiptId}: ${error.message}`, "error");
       }
     }
-
+  
     showMessage("Cupons reimpressos com sucesso!", "success");
     setIsReprintModalOpen(false);
   };
+  
 
   const openReprintModal = () => {
     setIsReprintModalOpen(true); // 🔹 Agora abre primeiro e depois busca os cupons quando o usuário solicitar
