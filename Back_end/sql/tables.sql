@@ -213,13 +213,20 @@ CREATE TABLE importacoes (
 
 CREATE TABLE vendas (
     id SERIAL PRIMARY KEY,
-    pedido_id INT REFERENCES pedidos(id) ON DELETE SET NULL, -- Opcional: pode estar associado a um pedido ou não
+    pedido_id INT REFERENCES pedidos(id) ON DELETE SET NULL,
     operador_id INT REFERENCES operadores(id) ON DELETE SET NULL,
+    filial_id INT REFERENCES filiais(id) ON DELETE SET NULL,
     cliente VARCHAR(100),
-    data_venda TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_venda DATE DEFAULT CURRENT_DATE,  
+    hora_venda TIME DEFAULT CURRENT_TIME,  
     total DECIMAL(10,2) DEFAULT 0.00,
-    status VARCHAR(20) DEFAULT 'Concluída' -- "Concluída", "Cancelada", etc.
+    troco DECIMAL(10,2) DEFAULT 0.00,  -- 🔹 Agora incluído
+    status VARCHAR(20) DEFAULT 'Concluída'
 );
+
+
+
+
 
 CREATE TABLE formas_pagamento (
     id SERIAL PRIMARY KEY,

@@ -1,16 +1,19 @@
 import datetime
 from flask import Flask, request, jsonify, send_file
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 from psycopg2 import errors  
 import psycopg2
 import base64
+import io
+from reportlab.lib.pagesizes import mm
+from reportlab.pdfgen import canvas
 from decimal import Decimal
 from flask_jwt_extended import JWTManager, create_access_token
 import jwt
 from flask_cors import CORS
 import bcrypt
 import re
+from datetime import datetime
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})  # 🔹 Permite requisições apenas do frontend
@@ -463,61 +466,84 @@ def cancelar_pedido(id):
 @app.route("/vendas", methods=["POST"])
 def criar_venda():
     data = request.get_json()
-    print("Recebendo dados:", data)  # Debug para verificar os valores recebidos
+    print("Recebendo dados:", data)  # 🔹 Debug dos valores recebidos
 
     try:
-        # Dados obrigatórios
         operador_id = int(data["operador_id"])
         cliente = data.get("cliente", "Cliente Não Identificado")
-        filial_id = int(data["filial_id"])  # Garantindo que seja um número
+        filial_id = int(data["filial_id"])
         itens = data["itens"]
         pagamentos = data["pagamentos"]
+        pedido_id = data.get("pedido")
+        imprimir_cupom = data.get("imprimir_cupom", False)
 
-        # Trata `pedido` corretamente
-        pedido_id = data.get("pedido")  # Pode ser None, não precisa converter
+        # 🔹 Debug dos Itens Recebidos
+        print("\n📌 Debug dos Itens Recebidos:")
+        for item in itens:
+            print(f"Produto ID: {item['produto_id']}, Quantidade: {item['quantidade']}, Preço Unitário: {item['preco_unitario']}, Desconto: {item.get('desconto', 0)}")
 
-        # Converte os valores de `itens` para float corretamente
+        # 🔹 Debug dos Pagamentos Recebidos
+        print("\n📌 Debug dos Pagamentos Recebidos:")
+        for pagamento in pagamentos:
+            print(f"Forma Pagamento ID: {pagamento['forma_pagamento_id']}, Valor Pago: {pagamento['valor_pago']}, Troco: {pagamento.get('troco', 0)}")
+
+        # ✅ Conversão explícita para `float`
         total_venda = sum(
-            (float(item["quantidade"]) * float(item["preco_unitario"])) - float(item.get("desconto", 0))
+            (float(item["quantidade"]) * float(item["preco_unitario"])) - float(item.get("desconto", 0) or 0)
             for item in itens
         )
 
-        # Calcula o total pago e o troco
-        total_pago = sum(float(pagamento["valor"]) for pagamento in pagamentos)
-        troco = max(0, total_pago - total_venda)
+        total_pago = sum(float(pagamento["valor_pago"]) for pagamento in pagamentos)
+        troco_total = sum(float(pagamento.get("troco", 0)) for pagamento in pagamentos)  # ✅ Troco total
+
+        print(f"\n📌 TOTAL VENDA CALCULADO: {total_venda}")
+        print(f"\n📌 TOTAL PAGO: {total_pago}, TROCO TOTAL: {troco_total}")
 
     except (ValueError, TypeError, KeyError) as e:
-        print("Erro ao processar dados da venda:", e)
+        print("\n❌ Erro ao processar dados da venda:", e)
         return jsonify({"error": f"Erro ao processar os dados: {str(e)}"}), 400
 
     conn = get_db_connection()
+    venda_id = None
+
+    # ✅ Garantindo que cada item tenha uma descrição
+    for item in itens:
+        produto_id = int(item["produto_id"])
+        descricao = buscar_nome_produto(produto_id, conn)
+        item["descricao"] = descricao if descricao else "Produto Desconhecido"
+
     try:
         with conn.cursor() as cur:
-            # Registra a venda associada à filial com o troco
+            # 🔹 Inserindo venda
+            print("\n📌 Inserindo Venda no Banco de Dados...")
             cur.execute("""
                 INSERT INTO vendas (pedido_id, operador_id, cliente, filial_id, total, troco) 
                 VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-            """, (pedido_id, operador_id, cliente, filial_id, total_venda, troco))
+            """, (pedido_id, operador_id, cliente, filial_id, total_venda, troco_total))
             venda_id = cur.fetchone()[0]
+            print(f"✔️ Venda ID {venda_id} registrada!")
 
-            erros_estoque = []  # Lista para armazenar erros de estoque
+            erros_estoque = []
 
-            # Processa os itens vendidos e atualiza o estoque
             for item in itens:
                 try:
                     produto_id = int(item["produto_id"])
                     quantidade = float(item["quantidade"])
                     preco_unitario = float(item["preco_unitario"])
-                    desconto = float(item.get("desconto", 0))
+                    desconto = float(item.get("desconto", 0) or 0)
                     total_item = (quantidade * preco_unitario) - desconto
 
-                    # Registra o item da venda
+                    # 🔹 Debug dos itens da venda
+                    print(f"\n📌 Registrando Item da Venda:")
+                    print(f"Venda ID: {venda_id}, Produto ID: {produto_id}, Quantidade: {quantidade}, Preço Unitário: {preco_unitario}, Desconto: {desconto}, Total Item: {total_item}")
+
                     cur.execute("""
                         INSERT INTO vendas_itens (venda_id, produto_id, quantidade, preco_unitario, desconto, total, filial_id)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (venda_id, produto_id, quantidade, preco_unitario, desconto, total_item, filial_id))
 
-                    # Verifica se o produto tem estoque na filial
+                    # 🔹 Debug do Estoque
+                    print("\n📌 Verificando estoque para o produto:", produto_id)
                     cur.execute("""
                         SELECT quantidade FROM estoque_filial
                         WHERE filial_id = %s AND produto_id = %s
@@ -526,8 +552,9 @@ def criar_venda():
 
                     if estoque_atual:
                         estoque_atual = float(estoque_atual[0])
+                        print(f"✔️ Estoque atual do produto {produto_id}: {estoque_atual}")
                         if estoque_atual >= quantidade:
-                            # Atualiza o estoque reduzindo a quantidade vendida
+                            print(f"✔️ Atualizando estoque do produto {produto_id}")
                             cur.execute("""
                                 UPDATE estoque_filial
                                 SET quantidade = quantidade - %s
@@ -541,44 +568,307 @@ def criar_venda():
                 except Exception as e:
                     erros_estoque.append(f"Erro ao processar item {produto_id}: {str(e)}")
 
-            # Se houver erros de estoque, cancela a transação
             if erros_estoque:
                 conn.rollback()
-                print("Erro de estoque:", erros_estoque)
+                print("❌ Erro de estoque:", erros_estoque)
                 return jsonify({"error": "Erro de estoque", "detalhes": erros_estoque}), 400
 
-            # Registra os pagamentos
+            # 🔹 Registrando pagamentos com troco
             for pagamento in pagamentos:
-                try:
-                    forma_pagamento_id = int(pagamento["forma_pagamento_id"])
-                    valor = float(pagamento["valor"])
+                forma_pagamento_id = int(pagamento["forma_pagamento_id"])
+                valor_pago = float(pagamento["valor_pago"])
+                troco_pagamento = float(pagamento.get("troco", 0))  # ✅ Troco por pagamento
 
-                    cur.execute("""
-                        INSERT INTO vendas_pagamento (venda_id, forma_pagamento_id, valor)
-                        VALUES (%s, %s, %s)
-                    """, (venda_id, forma_pagamento_id, valor))
-
-                except Exception as e:
-                    print("Erro ao registrar pagamento:", e)
-                    conn.rollback()
-                    return jsonify({"error": f"Erro ao registrar pagamento: {str(e)}"}), 400
+                print(f"\n📌 Registrando Pagamento: Forma {forma_pagamento_id}, Valor {valor_pago}, Troco {troco_pagamento}")
+                cur.execute("""
+                    INSERT INTO vendas_pagamento (venda_id, forma_pagamento_id, valor, troco)
+                    VALUES (%s, %s, %s, %s)
+                """, (venda_id, forma_pagamento_id, valor_pago, troco_pagamento))
 
             conn.commit()
+            print("✔️ Transação confirmada!")
+            
+        pdf_base64 = None
+
+        # ✅ Se o usuário escolheu imprimir, gera o cupom fiscal
+        if imprimir_cupom:
+            print("\n📌 Gerando cupom fiscal em PDF...")
+            filial_dados = buscar_dados_filial(filial_id, conn)
+            pdf_bytes = gerar_pdf(venda_id, cliente, total_venda, troco_total, itens, pagamentos, filial_dados)
+            pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode("utf-8")
 
         return jsonify({
             "message": "Venda registrada com sucesso!",
             "venda_id": venda_id,
             "total_venda": total_venda,
             "total_pago": total_pago,
-            "troco": troco
+            "troco_total": troco_total,
+            "cupom_fiscal_pdf": pdf_base64
         }), 201
 
     except Exception as e:
         conn.rollback()
-        print("Erro na venda:", str(e))  # Debug do erro no console
+        print("\n❌ Erro na venda:", str(e))
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+def gerar_pdf(venda_id, cliente, total_venda, troco_total, itens, pagamentos, filial_dados, reimpressao=False):
+    """Gera um cupom fiscal otimizado para impressoras térmicas pequenas"""
+    buffer = io.BytesIO()
+    
+    largura_pagina = 58 * mm
+    altura_base = 100  
+    altura_itens = len(itens) * 10
+    altura_pagamentos = len(pagamentos) * 8
+    altura_total = (altura_base + altura_itens + altura_pagamentos) * mm
+    
+    c = canvas.Canvas(buffer, pagesize=(largura_pagina, altura_total))
+    c.setFont("Courier", 8)
+
+    y = altura_total - 15  
+
+    if filial_dados:
+        c.drawString(5, y, f"{filial_dados['nome']}")
+        y -= 12  
+        c.drawString(5, y, f"CNPJ: {filial_dados['cnpj']}")
+        y -= 10
+        c.drawString(5, y, f"{filial_dados['endereco']}, {filial_dados['cidade']} - {filial_dados['estado']}")
+        y -= 10
+        c.drawString(5, y, f"Fone: {filial_dados['telefone']}")
+        y -= 12  
+        c.drawString(5, y, "-----------------------------")
+        y -= 15  
+
+    c.drawString(5, y, "        CUPOM FISCAL         ")
+    y -= 12
+    if reimpressao:
+        c.drawString(5, y, "      ** REIMPRESSÃO **      ")
+        y -= 12
+    c.drawString(5, y, f"Venda ID: {venda_id}")
+    y -= 10
+    c.drawString(5, y, f"Cliente: {cliente}")
+    y -= 12
+    c.drawString(5, y, "-----------------------------")
+    y -= 15
+
+    c.setFont("Courier-Bold", 8)
+    c.drawString(5, y, "QTD   DESCRIÇÃO      VL.UN  TOT")
+    y -= 10
+    c.drawString(5, y, "-----------------------------")
+    y -= 12
+
+    c.setFont("Courier", 8)
+    for item in itens:
+        descricao = item["descricao"][:12]  # ✅ Agora está correto
+        quantidade = float(item["quantidade"])
+        preco_unitario = float(item["preco_unitario"])
+        desconto = float(item.get("desconto", 0))
+        total_item = (quantidade * preco_unitario) - desconto
+
+        c.drawString(5, y, f"{quantidade:>2}  {descricao:<12} {preco_unitario:>5.2f} {total_item:>6.2f}")
+        y -= 10
+
+    c.drawString(5, y, "-----------------------------")
+    y -= 15
+
+    c.setFont("Courier-Bold", 8)
+    c.drawString(5, y, f"TOTAL VENDA:  R$ {total_venda:.2f}")
+    y -= 10
+    c.drawString(5, y, f"TROCO:         R$ {troco_total:.2f}")
+    y -= 12
+    c.drawString(5, y, "-----------------------------")
+    y -= 15
+
+    c.setFont("Courier", 8)
+    for pagamento in pagamentos:
+        forma_pagamento_id = int(pagamento["forma_pagamento_id"])
+        valor_pago = float(pagamento.get("valor", 0))  
+        troco = float(pagamento.get("troco", 0))
+
+        forma_pagamento_nome = buscar_nome_forma_pagamento(forma_pagamento_id) or f"ID {forma_pagamento_id}"
+
+        c.drawString(5, y, f"PAG: {forma_pagamento_nome} - R$ {valor_pago:.2f}")
+        if troco > 0:
+            c.drawString(5, y - 10, f"Troco: R$ {troco:.2f}")
+            y -= 10
+        y -= 10
+
+    c.drawString(5, y, "-----------------------------")
+    y -= 12
+    c.drawString(5, y, "    OBRIGADO PELA COMPRA!    ")
+    y -= 12
+    c.drawString(5, y, "-----------------------------")
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+@app.route("/reimprimir_venda", methods=["POST"])
+def reimprimir_venda():
+    data = request.get_json()
+    venda_id = data.get("venda_id")
+
+    if not venda_id:
+        return jsonify({"error": "ID da venda é obrigatório"}), 400
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(dictionary=True) as cur:
+            # 🔹 Buscar informações da venda
+            cur.execute("""
+                SELECT pedido_id, operador_id, cliente, filial_id, total, troco
+                FROM vendas
+                WHERE id = %s
+            """, (venda_id,))
+            venda = cur.fetchone()
+
+            if not venda:
+                return jsonify({"error": "Venda não encontrada"}), 404
+
+            # 🔹 Buscar itens da venda
+            cur.execute("""
+                SELECT vi.produto_id, vi.quantidade, vi.preco_unitario, vi.desconto, p.descpro01 AS descricao
+                FROM vendas_itens vi
+                JOIN produtos p ON vi.produto_id = p.codpro01
+                WHERE vi.venda_id = %s
+            """, (venda_id,))
+            itens = cur.fetchall()
+
+            # 🔹 Buscar pagamentos da venda
+            cur.execute("""
+                SELECT vp.forma_pagamento_id, vp.valor, vp.troco
+                FROM vendas_pagamento vp
+                WHERE vp.venda_id = %s
+            """, (venda_id,))
+            pagamentos = cur.fetchall()
+
+            # 🔹 Buscar dados da filial
+            filial_dados = buscar_dados_filial(venda["filial_id"], conn)
+
+        # ✅ Gerar o cupom fiscal como reimpressão
+        pdf_bytes = gerar_pdf(
+            venda_id=venda_id,
+            cliente=venda["cliente"],
+            total_venda=venda["total"],
+            troco_total=venda["troco"],
+            itens=itens,
+            pagamentos=pagamentos,
+            filial_dados=filial_dados,
+            reimpressao=True  # 🔹 Indica que é uma reimpressão
+        )
+
+        pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode("utf-8")
+
+        return jsonify({
+            "message": "Reimpressão gerada com sucesso!",
+            "cupom_fiscal_pdf": pdf_base64
+        }), 200
+
+    except Exception as e:
+        print("❌ Erro ao reimprimir venda:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
+@app.route("/vendas", methods=["GET"])
+def listar_vendas():
+    """Lista todas as vendas disponíveis para reimpressão com filtro por período."""
+    conn = get_db_connection()
+    try:
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+
+        print("Start Date:", start_date, "End Date:", end_date)  # 🔹 Debug: veja as datas recebidas
+
+        query = """
+            SELECT v.id, v.cliente, v.filial_id, v.total, v.troco, v.data_venda
+            FROM vendas v
+        """
+        params = []
+
+        if start_date and end_date:
+            try:
+                # 🔹 Garante que as datas estejam corretas
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+                # 🔹 Usa >= e <= para considerar o TIMESTAMP corretamente
+                query += " WHERE v.data_venda >= %s AND v.data_venda <= %s"
+                params = [f"{start_date} 00:00:00", f"{end_date} 23:59:59"]
+            except ValueError:
+                return jsonify({"error": "Formato de data inválido. Use YYYY-MM-DD"}), 400
+
+        query += " ORDER BY v.data_venda DESC"
+
+        print("QUERY SQL:", query, params)  # 🔹 Debug: imprime a query gerada
+
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            vendas = cur.fetchall()
+
+        lista_vendas = []
+        for venda in vendas:
+            venda_id, cliente, filial_id, total_venda, troco, data_venda = venda
+
+            # Buscar o nome da filial
+            filial_dados = buscar_dados_filial(filial_id, conn)
+
+            lista_vendas.append({
+                "venda_id": venda_id,
+                "cliente": cliente,
+                "filial_id": filial_id,
+                "filial_nome": filial_dados["nome"] if filial_dados else "Desconhecida",
+                "total_venda": total_venda,
+                "troco": troco,
+                "data_venda": data_venda.strftime("%Y-%m-%d %H:%M:%S")  # 🔹 Garante a formatação correta
+            })
+
+        return jsonify(lista_vendas), 200
+
+    except Exception as e:
+        print("Erro ao listar vendas:", str(e))
+        return jsonify({"error": f"Erro ao buscar vendas: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+def buscar_dados_filial(filial_id, conn):
+    """Busca os dados da filial no banco de dados"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT nome, endereco, telefone, cidade, estado, cnpj 
+            FROM filiais WHERE id = %s
+        """, (filial_id,))
+        filial = cur.fetchone()
+        if filial:
+            return {
+                "nome": filial[0],
+                "endereco": filial[1],
+                "telefone": filial[2],
+                "cidade": filial[3],
+                "estado": filial[4],
+                "cnpj": filial[5]
+            }
+        return None
+
+def buscar_nome_produto(produto_id, conn):
+    """Busca o nome do produto no banco de dados"""
+    with conn.cursor() as cur:
+        cur.execute("SELECT nome FROM produtos WHERE id = %s", (produto_id,))
+        produto = cur.fetchone()
+        return produto[0] if produto else f"Produto {produto_id}"
+    
+def buscar_nome_forma_pagamento(forma_pagamento_id):
+    conn = get_db_connection()
+    """Busca o nome da forma de pagamento no banco de dados"""
+    with conn.cursor() as cur:
+        cur.execute("SELECT nome FROM formas_pagamento WHERE id = %s", (forma_pagamento_id,))
+        forma_pagamento = cur.fetchone()
+        return forma_pagamento[0] if forma_pagamento else f"Forma {forma_pagamento_id}"
 
 
 @app.route("/formas_pagamento", methods=["GET"])

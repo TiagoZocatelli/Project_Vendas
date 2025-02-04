@@ -34,7 +34,7 @@ import {
   PaymentHistoryList,
   ButtonGroup
 } from "./styles";
-import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
+import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle, FaPrint } from "react-icons/fa";
 import { CategorySection } from "./styles";
 import { ProductGrid } from "./styles";
 import { CloseButton } from "./styles";
@@ -92,6 +92,19 @@ const PDV = () => {
   const [isConfirmCancelSaleOpen, setIsConfirmCancelSaleOpen] = useState(false);
   const [isConfirmCancelItemOpen, setIsConfirmCancelItemOpen] = useState(false);
 
+  const [isReprintModalOpen, setIsReprintModalOpen] = useState(false);
+  const [searchSale, setSearchSale] = useState("");
+  const [sales, setSales] = useState([]);
+  const [selectedReceipts, setSelectedReceipts] = useState([]);
+
+  const [startDate, setStartDate] = useState(""); // Data inicial
+  const [endDate, setEndDate] = useState(""); // Data final
+
+  // Estado para abrir o modal de confirmação
+  const [isConfirmPrintModalOpen, setIsConfirmPrintModalOpen] = useState(false);
+  const [shouldPrint, setShouldPrint] = useState(false);
+
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
@@ -110,6 +123,18 @@ const PDV = () => {
     };
     fetchPaymentMethods();
   }, []);
+
+  // Abre o modal de confirmação antes de finalizar a compra
+  const handleConfirmPrint = () => {
+    setIsConfirmPrintModalOpen(true);
+  };
+
+  // Chama a API após o usuário decidir imprimir ou não
+  const handleFinalizeSale = (print) => {
+    setShouldPrint(print);
+    setIsConfirmPrintModalOpen(false);
+    sendSaleToAPI(print);
+  };
 
   // Busca os produtos da API ao carregar o componente
   useEffect(() => {
@@ -220,31 +245,35 @@ const PDV = () => {
   };
 
   const handlePartialPayment = () => {
-    if (!paymentAmount || paymentAmount <= 0) {
-      showMessage("Insira um valor válido para pagamento.", "error");
+    if (!paymentMethod || paymentAmount <= 0) {
+      showMessage("Erro: Escolha um método de pagamento e insira um valor válido.", "error");
       return;
     }
 
-    // Calcula o novo total pago
     const newTotalPaid = totalPaid + paymentAmount;
-    const newRemainingTotal = Math.max(0, remainingTotal - paymentAmount); // Garante que não seja negativo
-    const newChange = Math.max(0, newTotalPaid - totalGeneral); // Troco correto
+    const newRemainingTotal = Math.max(0, remainingTotal - paymentAmount);
+    let changeAmount = 0; // Inicializa o troco
 
-    // Atualiza os estados corretamente
+    if (paymentAmount > remainingTotal) {
+      changeAmount = parseFloat((paymentAmount - remainingTotal).toFixed(2)); // Calcula o troco apenas no último pagamento
+    }
+
+    const newPayment = {
+      method: paymentMethod,
+      amount: parseFloat(paymentAmount.toFixed(2)), // Garantia de precisão
+      change: changeAmount, // Troco apenas para o último pagamento
+    };
+
+    setPaymentHistory([...paymentHistory, newPayment]);
+
     setTotalPaid(newTotalPaid);
     setRemainingTotal(newRemainingTotal);
-    setChange(newChange); // Define o troco se houver
+    setChange(changeAmount); // Atualiza o troco global
 
-    // Adiciona o pagamento ao histórico
-    setPaymentHistory([
-      ...paymentHistory,
-      { method: paymentMethod, amount: paymentAmount },
-    ]);
-
-    // Resetar os valores do pagamento
-    setPaymentMethod("");
-    setPaymentAmount("");
+    setPaymentAmount(""); // Reseta o input
+    setPaymentMethod(""); // Reseta o método de pagamento
   };
+
 
 
   const openPaymentModal = () => {
@@ -300,7 +329,7 @@ const PDV = () => {
     setHighlightedProduct({ nome: "Nenhum produto selecionado" });
   };
 
-  const sendSaleToAPI = async () => {
+  const sendSaleToAPI = async (shouldPrint) => {
     if (cart.length === 0) {
       showMessage("Erro: Nenhum item no carrinho para registrar venda.", "error");
       return;
@@ -315,7 +344,7 @@ const PDV = () => {
       const saleData = {
         operador_id: operatorNumber,
         filial_id: operadorFilial,
-        pedido: null, // 🔹 Defina corretamente a filial
+        pedido: null,
         cliente: "Cliente Padrão",
         itens: cart.map((item) => ({
           produto_id: item.id,
@@ -323,23 +352,117 @@ const PDV = () => {
           preco_unitario: item.preco_venda,
           desconto: item.discountApplied || 0,
         })),
-        pagamentos: paymentHistory.map((p) => ({
-          forma_pagamento_id: paymentMethods.find((pm) => pm.nome === p.method)?.id,
-          valor: p.amount,
-        })),
+        pagamentos: paymentHistory.map((p, index) => {
+          const paymentMethod = paymentMethods.find((pm) => pm.nome === p.method);
+          const isLastPayment = index === paymentHistory.length - 1; // Verifica se é o último pagamento
+
+          return {
+            forma_pagamento_id: paymentMethod ? paymentMethod.id : null,
+            valor_pago: p.amount,
+            troco: isLastPayment ? p.change : 0, // ✅ Troco só para o último pagamento
+          };
+        }),
+        imprimir_cupom: shouldPrint,
       };
+
+      console.log("📌 Dados enviados para API:", saleData); // 🔹 Debug
 
       const response = await api.post("/vendas", saleData);
 
       if (response.status === 201) {
         showMessage("Venda finalizada e registrada com sucesso!", "success");
-        resetSale(); // 🔹 Reseta o PDV após finalizar a venda
+
+        // ✅ Se o usuário escolheu imprimir, faz o download do PDF
+        if (shouldPrint) {
+          const pdfBase64 = response.data.cupom_fiscal_pdf;
+          if (pdfBase64) {
+            downloadPDF(pdfBase64, `CupomFiscal_${response.data.venda_id}.pdf`);
+          }
+        }
+
+        resetSale();
       } else {
         showMessage("Erro ao registrar venda.", "error");
       }
     } catch (error) {
+      console.error("❌ Erro ao enviar venda:", error);
       showMessage(`Erro ao enviar venda: ${error.message}`, "error");
     }
+  };
+
+
+
+  const fetchSalesForPrinting = async () => {
+    if (!startDate || !endDate) {
+      showMessage("Selecione um período antes de buscar cupons.", "warning");
+      return;
+    }
+
+    try {
+      const response = await api.get(`/vendas?start_date=${startDate}&end_date=${endDate}`);
+      if (response.status === 200) {
+        if (response.data.length === 0) {
+          showMessage("Nenhum cupom encontrado nesse período.", "warning");
+        }
+        setSales(response.data);
+      } else {
+        showMessage("Erro ao buscar cupons.", "error");
+      }
+    } catch (error) {
+      showMessage(`Erro ao buscar cupons: ${error.message}`, "error");
+    }
+  };
+
+  const toggleSelectReceipt = (id) => {
+    setSelectedReceipts((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const confirmReprint = async () => {
+    if (selectedReceipts.length === 0) {
+      showMessage("Nenhum cupom selecionado.", "warning");
+      return;
+    }
+
+    for (let receiptId of selectedReceipts) {
+      try {
+        const response = await api.get(`/vendas/${receiptId}/reimprimir`);
+        if (response.status === 200) {
+          downloadPDF(response.data.cupom_fiscal_pdf, `CupomFiscal_${receiptId}.pdf`);
+        } else {
+          showMessage(`Erro ao reimprimir cupom ${receiptId}.`, "error");
+        }
+      } catch (error) {
+        showMessage(`Erro ao reimprimir cupom ${receiptId}: ${error.message}`, "error");
+      }
+    }
+
+    showMessage("Cupons reimpressos com sucesso!", "success");
+    setIsReprintModalOpen(false);
+  };
+
+  const openReprintModal = () => {
+    setIsReprintModalOpen(true); // 🔹 Agora abre primeiro e depois busca os cupons quando o usuário solicitar
+  };
+
+  // 🔹 Função para converter Base64 em Blob e fazer download do PDF
+  const downloadPDF = (base64Data, filename) => {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/pdf" });
+
+    // Criar um link temporário e baixar o arquivo
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
 
@@ -461,6 +584,19 @@ const PDV = () => {
 
   return (
     <>
+
+      {isConfirmPrintModalOpen && (
+        <ConfirmModalContainer>
+          <ConfirmModalContent>
+            <h2>Deseja imprimir o comprovante?</h2>
+            <p>Selecione se deseja gerar e imprimir o cupom fiscal.</p>
+            <ConfirmButtonContainer>
+              <ConfirmButton onClick={() => handleFinalizeSale(true)}>Sim, imprimir</ConfirmButton>
+              <ConfirmCancelButton onClick={() => handleFinalizeSale(false)}>Não, apenas finalizar</ConfirmCancelButton>
+            </ConfirmButtonContainer>
+          </ConfirmModalContent>
+        </ConfirmModalContainer>
+      )}
 
       {/* Modal para Confirmar Cancelamento da Venda */}
       {isConfirmCancelSaleOpen && (
@@ -626,6 +762,14 @@ const PDV = () => {
             >
               <FaUndo />
             </IconButton>
+            <IconButton
+              title="Reimprimir Cupom"
+              style={{ backgroundColor: "#007BFF", color: "white" }}
+              onClick={openReprintModal} // 🔹 Abre o modal de reimpressão
+            >
+              <FaPrint /> {/* Ícone de Impressora */}
+            </IconButton>
+
           </IconButtonGroup>
 
 
@@ -919,81 +1063,187 @@ const PDV = () => {
           </ProductModal>
         )}
 
+        {isReprintModalOpen && (
+          <ProductModal>
+            <ProductModalContent>
+              <CloseButton onClick={() => setIsReprintModalOpen(false)}>X</CloseButton>
+              <h2>Reimprimir Cupons</h2>
+
+              {/* Campos para Seleção de Data */}
+              <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{ flex: 1, padding: "8px", borderRadius: "8px" }}
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{ flex: 1, padding: "8px", borderRadius: "8px" }}
+                />
+                <Button onClick={fetchSalesForPrinting} style={{ backgroundColor: "#28A745", color: "white" }}>
+                  Buscar
+                </Button>
+              </div>
+
+              {/* Campo de Pesquisa */}
+              <input
+                type="text"
+                placeholder="Pesquisar por cliente ou ID"
+                value={searchSale}
+                onChange={(e) => setSearchSale(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  marginBottom: "10px",
+                  borderRadius: "8px",
+                }}
+              />
+
+              {/* Lista de Cupons para Seleção */}
+              <div
+                style={{
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                  padding: "10px",
+                }}
+              >
+                {sales.length === 0 ? (
+                  <p style={{ textAlign: "center", color: "#999" }}>Nenhum cupom encontrado.</p>
+                ) : (
+                  sales
+                    .filter((sale) =>
+                      sale.cliente.toLowerCase().includes(searchSale.toLowerCase()) ||
+                      sale.venda_id.toString().includes(searchSale)
+                    )
+                    .map((sale) => (
+                      <div
+                        key={sale.venda_id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 0",
+                          borderBottom: "1px solid #ddd",
+                        }}
+                      >
+                        {/* Informações da Venda */}
+                        <div style={{ flex: 1 }}>
+                          <p style={{ margin: 0, fontWeight: "bold" }}>
+                            ID: {sale.venda_id} - {sale.cliente}
+                          </p>
+                          <p style={{ margin: "5px 0", color: "#555" }}>
+                            R$ {sale.total_venda} - {sale.data_venda}
+                          </p>
+                        </div>
+
+                        {/* Checkbox para Selecionar Venda */}
+                        <input
+                          type="checkbox"
+                          checked={selectedReceipts.includes(sale.venda_id)}
+                          onChange={() => toggleSelectReceipt(sale.venda_id)}
+                          style={{ width: "20px", height: "20px" }}
+                        />
+                      </div>
+                    ))
+                )}
+              </div>
+
+              {/* Botão de Reimpressão */}
+              <Button
+                onClick={confirmReprint}
+                style={{
+                  marginTop: "20px",
+                  backgroundColor: "#007BFF",
+                  color: "white",
+                }}
+              >
+                Reimprimir Selecionados
+              </Button>
+            </ProductModalContent>
+          </ProductModal>
+        )}
+
+
         {isPaymentModalOpen && (
           <ModalOverlay >
 
-          <PaymentModalContainer>
-            <CloseButton onClick={() => setIsPaymentModalOpen(false)}>×</CloseButton>
+            <PaymentModalContainer>
+              <CloseButton onClick={() => setIsPaymentModalOpen(false)}>×</CloseButton>
 
-            <ModalTitle>💳 Finalizar Pagamento</ModalTitle>
+              <ModalTitle>💳 Finalizar Pagamento</ModalTitle>
 
-            {/* Exibição do Total */}
-            <TotalContainer>
-              <TotalDisplay>
-                Total Geral: <span>R$ {(Number(totalGeneral) || 0).toFixed(2)}</span>
-              </TotalDisplay>
-            </TotalContainer>
+              {/* Exibição do Total */}
+              <TotalContainer>
+                <TotalDisplay>
+                  Total Geral: <span>R$ {(Number(totalGeneral) || 0).toFixed(2)}</span>
+                </TotalDisplay>
+              </TotalContainer>
 
-            {/* Detalhes do Pagamento */}
-            <p><strong>💰 Total Restante:</strong> R$ {(Number(remainingTotal) || 0).toFixed(2)}</p>
-            <p><strong>✅ Total Pago:</strong> R$ {totalPaid.toFixed(2)}</p>
-            {change > 0 && <p><strong>🔄 Troco:</strong> R$ {change.toFixed(2)}</p>}
+              {/* Detalhes do Pagamento */}
+              <p><strong>💰 Total Restante:</strong> R$ {(Number(remainingTotal) || 0).toFixed(2)}</p>
+              <p><strong>✅ Total Pago:</strong> R$ {totalPaid.toFixed(2)}</p>
+              {change > 0 && <p><strong>🔄 Troco:</strong> R$ {change.toFixed(2)}</p>}
 
-            {/* Escolha do Método de Pagamento */}
-            <div>
-              <label>Método de Pagamento:</label>
-              <PaymentSelect
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                <option value="">Selecione</option>
-                {paymentMethods.map((method) => (
-                  <option key={method.id} value={method.nome}>
-                    {method.nome}
-                  </option>
-                ))}
-              </PaymentSelect>
-            </div>
-
-            {/* Input de Valor do Pagamento */}
-            <div style={{ marginTop: "10px" }}>
-              <label>💵 Valor do Pagamento:</label>
-              <PaymentInput
-                type="number"
-                value={paymentAmount === "" ? "" : paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value ? Number(e.target.value) : "")}
-              />
-            </div>
-
-            {/* Botões de Ação */}
-            <ButtonGroup>
-              <ActionButton variant="confirm" onClick={handlePartialPayment}>
-                <FaCheckCircle size={16} /> Confirmar Pagamento
-              </ActionButton>
-
-              <ActionButton variant="finalize" onClick={sendSaleToAPI} disabled={remainingTotal > 0}>
-                <FaMoneyBillWave size={16} /> Finalizar Compra
-              </ActionButton>
-
-              <ActionButton variant="cancel" onClick={cancelPayment}>
-                <FaTimes size={16} /> Cancelar Pagamento
-              </ActionButton>
-            </ButtonGroup>
-
-            {/* Histórico de Pagamentos */}
-            {paymentHistory.length > 0 && (
-              <PaymentHistoryContainer>
-                <PaymentHistoryText>📜 Pagamentos Realizados:</PaymentHistoryText>
-                <PaymentHistoryList>
-                  {paymentHistory.map((payment, index) => (
-                    <li key={index}>
-                      {payment.method}: <strong>R$ {payment.amount.toFixed(2)}</strong>
-                    </li>
+              {/* Escolha do Método de Pagamento */}
+              <div>
+                <label>Método de Pagamento:</label>
+                <PaymentSelect
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {paymentMethods.map((method) => (
+                    <option key={method.id} value={method.nome}>
+                      {method.nome}
+                    </option>
                   ))}
-                </PaymentHistoryList>
-              </PaymentHistoryContainer>
-            )}
-          </PaymentModalContainer>
+                </PaymentSelect>
+              </div>
+
+              {/* Input de Valor do Pagamento */}
+              <div style={{ marginTop: "10px" }}>
+                <label>💵 Valor do Pagamento:</label>
+                <PaymentInput
+                  type="number"
+                  value={paymentAmount === "" ? "" : paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value ? Number(e.target.value) : "")}
+                />
+              </div>
+
+              {/* Botões de Ação */}
+              <ButtonGroup>
+                <ActionButton variant="confirm" onClick={handlePartialPayment}>
+                  <FaCheckCircle size={16} /> Confirmar Pagamento
+                </ActionButton>
+
+                <ActionButton variant="finalize" onClick={handleConfirmPrint} disabled={remainingTotal > 0}>
+                  <FaMoneyBillWave size={16} /> Finalizar Compra
+                </ActionButton>
+
+                <ActionButton variant="cancel" onClick={cancelPayment}>
+                  <FaTimes size={16} /> Cancelar Pagamento
+                </ActionButton>
+              </ButtonGroup>
+
+              {/* Histórico de Pagamentos */}
+              {paymentHistory.length > 0 && (
+                <PaymentHistoryContainer>
+                  <PaymentHistoryText>📜 Pagamentos Realizados:</PaymentHistoryText>
+                  <PaymentHistoryList>
+                    {paymentHistory.map((payment, index) => (
+                      <li key={index}>
+                        {payment.method}: <strong>R$ {payment.amount.toFixed(2)}</strong>
+                      </li>
+                    ))}
+                  </PaymentHistoryList>
+                </PaymentHistoryContainer>
+              )}
+            </PaymentModalContainer>
           </ModalOverlay>
         )}
         <OperatorInfo>
