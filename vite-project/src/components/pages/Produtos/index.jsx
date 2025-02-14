@@ -947,7 +947,7 @@ const Produtos = () => {
               <TableCell>R$ {product.preco_custo.toFixed(2)}</TableCell>
               <TableCell>R$ {product.preco_venda.toFixed(2)}</TableCell>
               <TableCell>{product.margem}%</TableCell>
-              <TableCell>{product.estoque | "0"}</TableCell>
+              <TableCell>{product.estoque ? parseFloat(product.estoque).toFixed(3) : "0.000"}</TableCell>
               <TableCell>
                 <ActionIcon onClick={() => editProduct(index)}>
                   <FaEdit size={16} style={{ color: "#FF9800" }} />

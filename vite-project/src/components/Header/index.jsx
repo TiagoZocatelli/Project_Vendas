@@ -77,7 +77,7 @@ const Header = () => {
           <AsideItem $bgColor="#E91E63" $hoverColor="#C2185B" onClick={handleVendasClick}>
             <Link to="/vendas">
               <FaChartLine />
-              Vendas
+              PDV
             </Link>
           </AsideItem>
           <AsideItem $bgColor="#FF9800" $hoverColor="#F57C00">

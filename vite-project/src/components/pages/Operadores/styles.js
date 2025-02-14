@@ -101,7 +101,7 @@ export const ModalOverlay = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6); /* Fundo escuro mais suave */
+  background: rgba(0, 0, 0, 0.8); /* Fundo escuro mais suave */
   display: flex;
   justify-content: center;
   align-items: center;

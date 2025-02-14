@@ -17,7 +17,7 @@ from psycopg2.extras import RealDictCursor
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})  # 🔹 Permite requisições apenas do frontend
+CORS(app) # 🔹 Permite requisições apenas do frontend
 app.config["JWT_SECRET_KEY"] = "seu_segredo_aqui"
 jwt = JWTManager(app)
 SECRET_KEY = "seu_segredo_super_secreto"
@@ -418,48 +418,190 @@ def cancelar_oferta(id):
 # ------------------------------
 @app.route("/pedidos", methods=["GET"])
 def listar_pedidos():
+    """Retorna a lista de pedidos ordenados pela data mais recente, incluindo os itens"""
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT * FROM pedidos ORDER BY data_pedido DESC")
-        results = cur.fetchall()
-        colnames = [desc[0] for desc in cur.description]
-    conn.close()
-    return jsonify([dict(zip(colnames, row)) for row in results])
+    pedidos = {}
+
+    try:
+        with conn.cursor() as cur:
+            # Buscar todos os pedidos
+            cur.execute("""
+                SELECT p.id, p.cliente, p.data_pedido, p.status, p.total, p.taxa_entrega, p.observacao,
+                       pi.produto_id, prod.nome AS produto_nome, pi.quantidade, pi.preco_unitario, pi.total AS total_item
+                FROM pedidos p
+                LEFT JOIN pedido_itens pi ON p.id = pi.pedido_id
+                LEFT JOIN produtos prod ON pi.produto_id = prod.id
+                ORDER BY p.data_pedido DESC
+            """)
+            
+            rows = cur.fetchall()
+            colnames = [desc[0] for desc in cur.description]
+
+            # Organizar pedidos e seus itens
+            for row in rows:
+                row_dict = dict(zip(colnames, row))
+                pedido_id = row_dict.pop("id")
+
+                if pedido_id not in pedidos:
+                    pedidos[pedido_id] = {
+                        "id": pedido_id,
+                        "cliente": row_dict["cliente"],
+                        "data_pedido": row_dict["data_pedido"],
+                        "status": row_dict["status"],
+                        "total": row_dict["total"],
+                        "taxa_entrega": row_dict["taxa_entrega"],
+                        "observacao": row_dict["observacao"],
+                        "itens": []
+                    }
+
+                # Se o pedido tiver itens, adiciona na lista de itens
+                if row_dict["produto_id"]:
+                    pedidos[pedido_id]["itens"].append({
+                        "produto_id": row_dict["produto_id"],
+                        "produto_nome": row_dict["produto_nome"],
+                        "quantidade": row_dict["quantidade"],
+                        "preco_unitario": row_dict["preco_unitario"],
+                        "total_item": row_dict["total_item"]
+                    })
+
+        return jsonify(list(pedidos.values()))
+
+    except Exception as e:
+        print(f"Erro ao listar pedidos: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
 
 
 @app.route("/pedidos", methods=["POST"])
 def criar_pedido():
+    """Cria um novo pedido e salva os itens"""
     data = request.get_json()
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("INSERT INTO pedidos (cliente, operador_id, total) VALUES (%s, %s, %s) RETURNING id",
-                    (data["cliente"], data["operador_id"], data["total"]))
-        pedido_id = cur.fetchone()[0]
-        conn.commit()
-    conn.close()
-    return jsonify({"message": "Pedido criado!", "id": pedido_id})
 
+    if "cliente" not in data or "total" not in data or "itens" not in data:
+        return jsonify({"error": "Campos obrigatórios: cliente, total e itens"}), 400
+
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # 🔹 Insere o pedido na tabela `pedidos`
+            cur.execute("""
+                INSERT INTO pedidos (cliente, total, taxa_entrega, observacao, status) 
+                VALUES (%s, %s, %s, %s, 'P') RETURNING id
+            """, (
+                data["cliente"], 
+                float(data["total"]),  # ✅ Garante que é um número
+                float(data.get("taxa_entrega", 0)),  # ✅ Valor padrão 0.00
+                data.get("observacao", "")
+            ))
+            pedido_id = cur.fetchone()[0]  # Obtém o ID do pedido recém-criado
+
+            # 🔹 Insere os itens do pedido
+            for item in data["itens"]:
+                cur.execute("""
+                    INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    pedido_id,
+                    int(item["produto_id"]),
+                    int(item["quantidade"]),
+                    float(item["preco_unitario"]),  # ✅ Conversão correta
+                    float(item["total"])
+                ))
+
+            conn.commit()
+
+        return jsonify({"message": "Pedido criado com sucesso!", "id": pedido_id, "status": "P"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
 
 @app.route("/pedidos/<int:id>", methods=["PUT"])
 def atualizar_pedido(id):
+    """Atualiza um pedido existente e seus itens"""
     data = request.get_json()
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("UPDATE pedidos SET cliente=%s, operador_id=%s, total=%s WHERE id=%s",
-                    (data["cliente"], data["operador_id"], data["total"], id))
-        conn.commit()
-    conn.close()
-    return jsonify({"message": "Pedido atualizado!"})
 
+    # Valida os campos obrigatórios
+    if "cliente" not in data or "total" not in data or "itens" not in data:
+        return jsonify({"error": "Campos obrigatórios: cliente, total e itens"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Atualiza os detalhes do pedido
+            cur.execute("""
+                UPDATE pedidos 
+                SET cliente=%s, total=%s, taxa_entrega=%s, observacao=%s 
+                WHERE id=%s
+            """, (data["cliente"], data["total"], data.get("taxa_entrega", 0.00), data.get("observacao", ""), id))
+
+            # Lista os produtos atuais do pedido
+            cur.execute("SELECT produto_id FROM pedido_itens WHERE pedido_id = %s", (id,))
+            produtos_atuais = {row[0] for row in cur.fetchall()}  # Converte para um conjunto
+
+            novos_produtos = {item["produto_id"] for item in data["itens"]}  # Produtos que vêm da requisição
+
+            # Remover produtos que não estão mais na lista de itens
+            produtos_removidos = produtos_atuais - novos_produtos
+            if produtos_removidos:
+                cur.execute("DELETE FROM pedido_itens WHERE pedido_id = %s AND produto_id IN %s", (id, tuple(produtos_removidos)))
+
+            # Atualizar ou inserir os produtos no pedido
+            for item in data["itens"]:
+                if item["produto_id"] in produtos_atuais:
+                    # Atualiza o item existente
+                    cur.execute("""
+                        UPDATE pedido_itens 
+                        SET quantidade=%s, preco_unitario=%s, total=%s 
+                        WHERE pedido_id=%s AND produto_id=%s
+                    """, (item["quantidade"], item["preco_unitario"], item["quantidade"] * item["preco_unitario"], id, item["produto_id"]))
+                else:
+                    # Insere um novo item no pedido
+                    cur.execute("""
+                        INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (id, item["produto_id"], item["quantidade"], item["preco_unitario"], item["quantidade"] * item["preco_unitario"]))
+
+            conn.commit()  # Confirma todas as operações no banco de dados
+
+        return jsonify({"message": "Pedido atualizado com sucesso!"})
+
+    except Exception as e:
+        conn.rollback()  # Cancela a transação se ocorrer um erro
+        print(f"Erro ao atualizar pedido: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()  # Fecha a conexão com o banco
 
 @app.route("/pedidos/<int:id>", methods=["DELETE"])
 def cancelar_pedido(id):
+    """Cancela um pedido removendo-o do banco de dados junto com seus itens"""
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("DELETE FROM pedidos WHERE id = %s", (id,))
-        conn.commit()
-    conn.close()
-    return jsonify({"message": "Pedido cancelado!"})
+    try:
+        with conn.cursor() as cur:
+            # Excluir primeiro os itens do pedido
+            cur.execute("DELETE FROM pedido_itens WHERE pedido_id = %s", (id,))
+            
+            # Agora, excluir o pedido
+            cur.execute("DELETE FROM pedidos WHERE id = %s", (id,))
+
+            conn.commit()  # Confirma as exclusões
+
+        return jsonify({"message": "Pedido e seus itens foram cancelados!"})
+
+    except Exception as e:
+        conn.rollback()  # Cancela a transação se ocorrer um erro
+        print(f"Erro ao cancelar pedido: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()  # Fecha a conexão com o banco
+
 
 # ------------------------------
 # 🚀 CRUD de Vendas
@@ -684,7 +826,7 @@ def gerar_pdf(venda_id, cliente, total_venda, troco_total, itens, pagamentos, fi
     c.setFont("Courier", 8)
     for pagamento in pagamentos:
         forma_pagamento_id = int(pagamento["forma_pagamento_id"])
-        valor_pago = float(pagamento.get("valor", 0))  
+        valor_pago = float(pagamento.get("valor_pago", 0))  
         troco = float(pagamento.get("troco", 0))
 
         forma_pagamento_nome = buscar_nome_forma_pagamento(forma_pagamento_id) or f"ID {forma_pagamento_id}"
@@ -1863,32 +2005,31 @@ def criar_entrada():
     """Cria uma nova entrada e adiciona os itens relacionados, atualizando custos e estoque."""
     data = request.json
     conn = get_db_connection()
-    
+
     if not conn:
         return jsonify({"error": "Erro ao conectar ao banco."}), 500
-    
+
     try:
         with conn.cursor() as cur:
-            # Adicionar a entrada na tabela 'entradas'
+            # Inserir a entrada na tabela 'entradas'
             cur.execute("""
                 INSERT INTO entradas (fornecedor_id, total, observacoes, filial_id)
                 VALUES (%s, %s, %s, %s) RETURNING id
             """, (
                 data["fornecedor_id"],
-                Decimal(data["total"]),
+                Decimal(str(data["total"])),  # Converte para Decimal
                 data["observacoes"],
                 data["filial_id"]
             ))
-            
             entrada_id = cur.fetchone()[0]
 
             # Processar os itens da entrada
             for item in data["itens"]:
                 produto_id = item["produto_id"]
-                nova_quantidade = Decimal(item["quantidade"])
-                novo_preco_custo = Decimal(item["preco_custo"])
+                nova_quantidade = Decimal(str(item["quantidade"]))  # Converter para Decimal
+                novo_preco_custo = Decimal(str(item["preco_custo"]))  # Converter para Decimal
 
-                # Inserir o item na tabela itens_entrada
+                # Inserir o item na tabela 'itens_entrada'
                 cur.execute("""
                     INSERT INTO itens_entrada (entrada_id, produto_id, quantidade, preco_custo, fornecedor_id, filial_id)
                     VALUES (%s, %s, %s, %s, %s, %s)
@@ -1900,8 +2041,8 @@ def criar_entrada():
                     data["fornecedor_id"],
                     data["filial_id"]
                 ))
-                
-                # Atualizar o estoque
+
+                # Atualizar o estoque na tabela 'estoque_filial'
                 cur.execute("""
                     INSERT INTO estoque_filial (filial_id, produto_id, quantidade)
                     VALUES (%s, %s, %s)
@@ -1913,36 +2054,37 @@ def criar_entrada():
                     nova_quantidade
                 ))
 
-                # Obter a quantidade atual do estoque na filial
+                # Obter a quantidade atual do estoque
                 cur.execute("""
-                    SELECT quantidade
-                    FROM estoque_filial
+                    SELECT quantidade FROM estoque_filial
                     WHERE filial_id = %s AND produto_id = %s
                 """, (data["filial_id"], produto_id))
                 estoque = cur.fetchone()
+                quantidade_atual = Decimal(str(estoque[0])) if estoque else Decimal("0.000")
 
-                quantidade_atual = Decimal(estoque[0]) if estoque else Decimal(0)
-
-                # Atualizar custos do produto
+                # Buscar custo atual do produto
                 cur.execute("""
                     SELECT preco_custo, custo_medio
                     FROM produtos
                     WHERE id = %s
                 """, (produto_id,))
                 produto = cur.fetchone()
-                
+
                 if produto:
-                    custo_atual = Decimal(produto[0])
-                    custo_medio = Decimal(produto[1]) if produto[1] is not None else custo_atual
+                    custo_atual = Decimal(str(produto[0]))
+                    custo_medio = Decimal(str(produto[1])) if produto[1] is not None else custo_atual
 
-                    # Atualizar o custo médio
+                    # Calcular novo custo médio
                     quantidade_total = quantidade_atual + nova_quantidade
-                    novo_custo_medio = (
-                        (custo_medio * quantidade_atual + novo_preco_custo * nova_quantidade)
-                        / quantidade_total
-                    )
+                    if quantidade_total > 0:
+                        novo_custo_medio = (
+                            (custo_medio * quantidade_atual + novo_preco_custo * nova_quantidade)
+                            / quantidade_total
+                        )
+                    else:
+                        novo_custo_medio = novo_preco_custo  # Se for a primeira entrada, define o novo custo como custo médio
 
-                    # Mover custo atual para custo anterior e atualizar custo médio
+                    # Atualizar custos do produto
                     cur.execute("""
                         UPDATE produtos
                         SET custo_anterior = preco_custo,
@@ -1951,16 +2093,16 @@ def criar_entrada():
                         WHERE id = %s
                     """, (novo_preco_custo, novo_custo_medio, produto_id))
 
-            # Commit para salvar todas as alterações
+            # Commit para salvar todas as alterações no banco de dados
             conn.commit()
-        
+
         return jsonify({"message": "Entrada, itens e custos atualizados com sucesso."}), 201
-    
+
     except Exception as e:
-        print(e)
+        print(f"Erro ao processar entrada: {e}")  # Log de erro
         conn.rollback()
         return jsonify({"error": str(e)}), 500
-    
+
     finally:
         conn.close()
 

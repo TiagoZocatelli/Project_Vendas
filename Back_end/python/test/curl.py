@@ -12,7 +12,7 @@ def get_db_connection():
     )
 
 # 🔹 Função para inserir usuário diretamente no banco
-def inserir_usuario(nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id):
+def inserir_usuario(nome, cpf, email, senha,  filial_id, nivel_acesso_id):
     senha_hash = bcrypt.hashpw(senha.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     conn = get_db_connection()
@@ -20,10 +20,10 @@ def inserir_usuario(nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO usuarios (nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO usuarios (nome, cpf, email, senha, filial_id, nivel_acesso_id) 
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
                 """,
-                (nome, cpf, email, senha_hash, cargo, filial_id, nivel_acesso_id)
+                (nome, cpf, email, senha_hash, filial_id, nivel_acesso_id)
             )
             usuario_id = cur.fetchone()[0]
             conn.commit()
@@ -39,12 +39,11 @@ def inserir_usuario(nome, cpf, email, senha, cargo, filial_id, nivel_acesso_id):
 # 📌 Criar Usuário "Suporte" diretamente no banco de dados
 if __name__ == "__main__":
     usuario_id = inserir_usuario(
-        nome="Suporte",
-        cpf="000.000.000-00",
-        email="teste@teste.com",
-        senha="zksistemas2025",
-        cargo="Administrador",
-        filial_id=1,  # Defina um ID válido da filial
+        nome="tiago",
+        cpf="100.000.000-00",
+        email="teste2@teste.com",
+        senha="1234",
+        filial_id=2,  # Defina um ID válido da filial
         nivel_acesso_id=1  # Defina um nível de acesso válido
     )
 

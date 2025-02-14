@@ -9,7 +9,8 @@ import {
   Button,
   SearchBar,
   Notification,
-  Select
+  Select,
+  ActionIcon
 } from "../../../styles/utils";
 import {
   ModalOverlay,
@@ -20,6 +21,7 @@ import {
   DivHeader
 } from './styles'
 import InputMask from "react-input-mask";
+import { FaEdit, FaTrash } from "react-icons/fa";
 
 const Clientes = () => {
   const [clients, setClients] = useState([]);
@@ -358,8 +360,12 @@ const Clientes = () => {
               <TableCell>{formatPhone(client.phone)}</TableCell>
               <TableCell>{client.address}</TableCell>
               <TableCell>
-                <Button onClick={() => openModal(index)}>Editar</Button>
-                <Button onClick={() => removeClient(client.id)}>Remover</Button>
+                <ActionIcon onClick={() => openModal(index)}>
+                  <FaEdit size={16} style={{ color: "#FF9800" }} />
+                </ActionIcon>
+                <ActionIcon onClick={() => removeClient(client.id)}>
+                  <FaTrash size={16} style={{ color: "#f43f5e" }} />
+                </ActionIcon>
               </TableCell>
             </TableRow>
           ))}

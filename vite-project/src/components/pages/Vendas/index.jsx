@@ -32,7 +32,10 @@ import {
   PaymentHistoryContainer,
   PaymentHistoryText,
   PaymentHistoryList,
-  ButtonGroup
+  ButtonGroup,
+  ProductImage,
+  ContainerTableTotal,
+  ProductImageContainer,
 } from "./styles";
 import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle, FaPrint } from "react-icons/fa";
 import { CategorySection } from "./styles";
@@ -424,7 +427,7 @@ const PDV = () => {
       showMessage("Nenhum cupom selecionado.", "warning");
       return;
     }
-  
+
     for (let receiptId of selectedReceipts) {
       try {
         const response = await api.post(`/reimprimir_venda`, { venda_id: receiptId }); // Enviando no corpo da requisição
@@ -437,11 +440,11 @@ const PDV = () => {
         showMessage(`Erro ao reimprimir cupom ${receiptId}: ${error.message}`, "error");
       }
     }
-  
+
     showMessage("Cupons reimpressos com sucesso!", "success");
     setIsReprintModalOpen(false);
   };
-  
+
 
   const openReprintModal = () => {
     setIsReprintModalOpen(true); // 🔹 Agora abre primeiro e depois busca os cupons quando o usuário solicitar
@@ -470,19 +473,20 @@ const PDV = () => {
   const handleBarcodeEnter = (e) => {
     if (e.key === "Enter") {
       const product = products.find((p) => p.codigo_barras === barcode);
-
+  
       if (product) {
         const existingProduct = cart.find((item) => item.id === product.id);
-
+        const quantidadeSelecionada = quantity > 0 ? quantity : 1; // Respeita a quantidade digitada
+  
         let updatedCart;
         if (existingProduct) {
           updatedCart = cart.map((item) =>
             item.id === product.id
               ? {
-                ...item,
-                quantity: item.quantity + 1, // Incrementa a quantidade em 1
-                total: Number(item.total) + Number(product.preco_venda), // Converte para número e soma corretamente
-              }
+                  ...item,
+                  quantity: item.quantity + quantidadeSelecionada, // Usa a quantidade digitada
+                  total: Number(item.total) + Number(product.preco_venda) * quantidadeSelecionada, // Recalcula o total
+                }
               : item
           );
         } else {
@@ -490,35 +494,36 @@ const PDV = () => {
             ...cart,
             {
               ...product,
-              quantity: 1,
-              total: Number(product.preco_venda), // Garante que seja um número
+              quantity: quantidadeSelecionada,
+              total: Number(product.preco_venda) * quantidadeSelecionada, // Ajusta o total conforme a quantidade
             },
           ];
         }
-
+  
         setCart(updatedCart);
-
+  
         // Atualiza o produto destacado IMEDIATAMENTE
         setHighlightedProduct({
           ...product,
-          quantity: 1,
-          total: Number(product.preco_venda),
+          quantity: quantidadeSelecionada,
+          total: Number(product.preco_venda) * quantidadeSelecionada,
         });
-
+  
         // Atualiza o total geral
         setTotalGeneral(
           updatedCart.reduce((sum, item) => sum + Number(item.finalTotal || item.total), 0)
         );
-
+  
         // Limpa campos de entrada
         setBarcode("");
-        setQuantity(1);
+        setQuantity(0); // Mantém 1 para evitar comportamento estranho
       } else {
         showMessage("Produto não encontrado.", "error");
         setBarcode("");
       }
     }
   };
+  
 
 
   const addToCart = () => {
@@ -526,18 +531,18 @@ const PDV = () => {
       showMessage("Selecione um produto antes de adicionar.", "error");
       return;
     }
-
+  
     const existingProduct = cart.find((item) => item.id === highlightedProduct.id);
-
+  
     let updatedCart;
     if (existingProduct) {
       updatedCart = cart.map((item) =>
         item.id === highlightedProduct.id
           ? {
-            ...item,
-            quantity: item.quantity + quantity, // Incrementa a quantidade
-            total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
-          }
+              ...item,
+              quantity: item.quantity + quantity, // Incrementa a quantidade
+              total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
+            }
           : item
       );
     } else {
@@ -550,24 +555,21 @@ const PDV = () => {
         },
       ];
     }
-
+  
     setCart(updatedCart);
     setTotalGeneral(
       updatedCart.reduce((sum, item) => sum + (item.finalTotal || item.total), 0)
     );
     setRemainingTotal(totalGeneral - totalPaid); // Ajusta o valor restante com base no total pago
-
-    // **Manter o último produto adicionado visível**
-    setHighlightedProduct({
-      ...highlightedProduct,
-      quantity,
-      total: highlightedProduct.preco_venda * quantity,
-    });
-
-    // **Não resetar `highlightedProduct`, apenas limpar os campos de input**
+  
+    // **Zera o produto selecionado para obrigar a escolha de um novo produto**
+    setHighlightedProduct({ nome: "Nenhum produto selecionado" });
+  
+    // **Zera os campos de entrada**
     setBarcode("");
-    setQuantity(1);
+    setQuantity(0);
   };
+  
 
   const cancelPayment = () => {
     setTotalPaid(0); // Reseta o total pago
@@ -670,118 +672,88 @@ const PDV = () => {
         )}
 
         <LeftSection>
-          <h2>Informações do Produto</h2>
-
-          <InputGroup>
-            <label>Código de Barras:</label>
-            <input
-              type="text"
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              onKeyDown={handleBarcodeEnter}
-              placeholder="Leia ou digite o código"
+          <ProductImageContainer>
+            <ProductImage
+              src={highlightedProduct?.imagem ? `data:image/jpeg;base64,${highlightedProduct.imagem}` : "https://via.placeholder.com/150"}
+              alt={highlightedProduct?.nome || "Produto"}
             />
-          </InputGroup>
-          <InputGroup>
-            <label>Quantidade:</label>
-            <input
-              type="number"
-              value={quantity}
-              min="1"
-              onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
-              onBlur={calculateTotalItem}
-            />
-          </InputGroup>
-          <InputGroup>
-            <label>Valor Unitário:</label>
-            <input type="number" value={unitPrice} readOnly />
-          </InputGroup>
-          <InputGroup>
-            <label>Total do Item:</label>
-            <input type="text" value={`R$ ${totalItem.toFixed(2)}`} readOnly />
-          </InputGroup>
+          </ProductImageContainer>
 
+
+            <InputGroup>
+              <label>Código de Barras:</label>
+              <input
+                type="text"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                onKeyDown={handleBarcodeEnter}
+                placeholder="Leia ou digite o código"
+              />
+            </InputGroup>
+
+            <InputGroup>
+              <label>Quantidade:</label>
+              <input
+                type="number"
+                value={quantity}
+                min="1"
+                onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
+                onBlur={calculateTotalItem}
+              />
+            </InputGroup>
+
+            <InputGroup>
+              <label>Valor Unitário:</label>
+              <input type="number" value={unitPrice} readOnly />
+            </InputGroup>
+
+            <InputGroup>
+              <label>Total do Item:</label>
+              <input type="text" value={`R$ ${totalItem.toFixed(2)}`} readOnly />
+            </InputGroup>
 
           <IconButtonGroup>
-            <IconButton
-              title="Aplicar desconto no item"
-              style={{ backgroundColor: "#2196F3", color: "white" }}
-              onClick={() => setIsDiscountModalOpen(true)}
-            >
+            <IconButton title="Aplicar desconto no item" onClick={() => setIsDiscountModalOpen(true)}>
               <FaTag />
             </IconButton>
 
-            <IconButton
-              title="Aplicar desconto no total"
-              style={{ backgroundColor: "#4CAF50", color: "white" }}
-              onClick={() => setIsTotalDiscountModalOpen(true)}
-            >
+            <IconButton title="Aplicar desconto no total" onClick={() => setIsTotalDiscountModalOpen(true)}>
               <FaTags />
             </IconButton>
 
-            <IconButton
-              title="Adicionar ao carrinho"
-              style={{ backgroundColor: "#FF9800", color: "white" }}
-              onClick={addToCart}
-            >
+            <IconButton title="Adicionar ao carrinho" onClick={addToCart}>
               <FaShoppingCart />
             </IconButton>
 
-            <IconButton
-              title="Buscar produtos"
-              style={{ backgroundColor: "#673AB7", color: "white" }}
-              onClick={() => setIsProductModalOpen(true)}
-            >
+            <IconButton title="Buscar produtos" onClick={() => setIsProductModalOpen(true)}>
               <FaSearch />
             </IconButton>
 
-            <IconButton
-              title="Finalizar compra"
-              style={{ backgroundColor: "#009688", color: "white" }}
-              onClick={() => openPaymentModal()}
-            >
+            <IconButton title="Finalizar compra" onClick={() => openPaymentModal()}>
               <FaMoneyBillWave />
             </IconButton>
 
-            <IconButton
-              title="Cancelar venda"
-              style={{ backgroundColor: "red", color: "white" }}
-              onClick={openConfirmCancelSaleModal}
-            >
+            <IconButton title="Cancelar venda" onClick={openConfirmCancelSaleModal}>
               <FaTimes />
             </IconButton>
 
-            <IconButton
-              title="Cancelar itens selecionados"
-              style={{
-                backgroundColor: cart.length > 0 ? "#FFA500" : "red",
-                color: "white",
-                cursor: cart.length > 0 ? "pointer" : "not-allowed"
-              }}
-              disabled={cart.length === 0}
-              onClick={() => setIsCancelItemModalOpen(true)}
-            >
+            <IconButton title="Cancelar itens selecionados" disabled={cart.length === 0} onClick={() => setIsCancelItemModalOpen(true)}>
               <FaUndo />
             </IconButton>
-            <IconButton
-              title="Reimprimir Cupom"
-              style={{ backgroundColor: "#007BFF", color: "white" }}
-              onClick={openReprintModal} // 🔹 Abre o modal de reimpressão
-            >
-              <FaPrint /> {/* Ícone de Impressora */}
+
+            <IconButton title="Reimprimir Cupom" onClick={openReprintModal}>
+              <FaPrint />
             </IconButton>
-
           </IconButtonGroup>
-
-
         </LeftSection>
+
         <RightSection>
           <TotalContainer>
             <TotalDisplay>
               Total Geral: R$ {(Number(totalGeneral) || 0).toFixed(2)}
             </TotalDisplay>
           </TotalContainer>
-          <div style={{ maxHeight: "400px", overflowY: "auto", width: "100%" }}>
+          <ContainerTableTotal>
             <ProductTableWrapper>
               <thead>
                 <tr>
@@ -812,7 +784,7 @@ const PDV = () => {
                 ))}
               </tbody>
             </ProductTableWrapper>
-          </div>
+          </ContainerTableTotal>
 
         </RightSection>
 
@@ -957,7 +929,8 @@ const PDV = () => {
                           onClick={() => {
                             setHighlightedProduct({
                               ...product,
-                              quantity,
+                              imagem: product.imagem,
+                              quantity: 1,
                               total: product.preco_venda * quantity,
                             });
                             setUnitPrice(product.preco_venda);

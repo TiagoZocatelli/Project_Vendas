@@ -19,6 +19,7 @@ import Operadores from "./components/pages/Operadores";
 import Users from "./components/pages/LoginUser"; // 🔹 Tela de Login
 import UsuariosGerenciamento from './components/pages/Usuarios';
 import { ConfirmButton, ConfirmCancelButton, ConfirmModalContainer, ConfirmModalContent, ConfirmButtonContainer, BackButton } from "./styles/utils";
+import Pedidos from "./components/pages/Pedidos";
 
 // 🔹 Proteção de Rotas (Exige Login)
 const PrivateRouteUsers = ({ children }) => {
@@ -44,8 +45,7 @@ function Layout() {
     <>
       <GlobalStyle />
 
-      {/* 🔹 Esconder Header se estiver em /vendas */}
-      {location.pathname !== "/" && location.pathname !== "/loginPdv" && location.pathname !== "/vendas" && <Header />}
+      {!["/", "/loginPdv", "/vendas", "/pedidos"].includes(location.pathname) && <Header />}
 
       <Routes>
         {/* 🔹 Tela de Login (se estiver logado, redireciona para /home) */}
@@ -66,7 +66,9 @@ function Layout() {
         <Route path="/entradas" element={<PrivateRouteUsers><Entradas /></PrivateRouteUsers>} />
         <Route path="/relatorios" element={<PrivateRouteUsers><Relatorios /></PrivateRouteUsers>} />
         <Route path="/financeiro" element={<PrivateRouteUsers><Financeiro /></PrivateRouteUsers>} />
+        <Route path="/pedidos" element={<PrivateRouteUsers><Pedidos /></PrivateRouteUsers>} />
         <Route path="/cadastros/usuarios" element={<PrivateRouteUsers><UsuariosGerenciamento /></PrivateRouteUsers>} />
+
 
         {/* 🔹 Área do PDV (Somente para usuários do PDV) */}
         <Route path="/vendas" element={

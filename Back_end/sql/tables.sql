@@ -20,7 +20,7 @@ CREATE TABLE estoque_filial (
     id SERIAL PRIMARY KEY,
     filial_id INT REFERENCES filiais(id) ON DELETE CASCADE, -- Relacionado à filial
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE, -- Relacionado ao produto
-    quantidade INTEGER NOT NULL DEFAULT 0,                  -- Quantidade em estoque
+    quantidade TYPE NUMERIC(10, 2);                  -- Quantidade em estoque
     estoque_minimo INTEGER DEFAULT 0,                       -- Estoque mínimo
     UNIQUE (filial_id, produto_id)                          -- Garante que não haja duplicação
 );
@@ -118,10 +118,11 @@ CREATE TABLE itens_entrada (
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE, -- Relacionado ao produto
     fornecedor_id INT REFERENCES fornecedores(id) ON DELETE SET NULL, -- Relacionado ao fornecedor
     filial_id INT REFERENCES filiais(id) ON DELETE CASCADE, -- Relacionado à filial
-    quantidade INTEGER NOT NULL, -- Quantidade adquirida
+    quantidade NUMERIC(10,3) NOT NULL, -- Permite valores fracionados (kg, g, etc.)
     preco_custo NUMERIC(12, 2) NOT NULL, -- Preço de custo do produto na entrada
-    subtotal NUMERIC(12, 2) GENERATED ALWAYS AS (quantidade * preco_custo) STORED -- Subtotal calculado
+    subtotal NUMERIC(12, 3) GENERATED ALWAYS AS (quantidade * preco_custo) STORED -- Subtotal calculado corretamente
 );
+
 
 CREATE TABLE niveis_acesso (
     id SERIAL PRIMARY KEY,
@@ -175,25 +176,25 @@ CREATE TABLE ofertas (
 CREATE TABLE pedidos (
     id SERIAL PRIMARY KEY,
     cliente VARCHAR(100), -- Pode ser NULL para clientes não identificados
-    operador_id INT REFERENCES operadores(id) ON DELETE SET NULL,
     data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'Pendente', -- "Pendente", "Aprovado", "Cancelado"
-    origem VARCHAR(50) DEFAULT 'PDV', -- "PDV", "Importado", "Online"
+    status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'F')), -- "P" = Pendente, "F" = Finalizado
     total DECIMAL(10,2) DEFAULT 0.00,
+    taxa_entrega DECIMAL(10,2) DEFAULT 0.00, -- Taxa de entrega separada
+    observacao TEXT, -- Campo para observações gerais do pedido
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Itens do Pedido
 CREATE TABLE pedido_itens (
     id SERIAL PRIMARY KEY,
     pedido_id INT REFERENCES pedidos(id) ON DELETE CASCADE,
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE,
-    quantidade INT NOT NULL,
+    quantidade INT NOT NULL CHECK (quantidade > 0), -- Quantidade não pode ser zero
     preco_unitario DECIMAL(10,2) NOT NULL,
-    desconto DECIMAL(10,2) DEFAULT 0.00,
-    total DECIMAL(10,2) NOT NULL,
+    desconto DECIMAL(10,2) DEFAULT 0.00, -- Desconto por item
+    total DECIMAL(10,2) NOT NULL, -- Total por item considerando desconto
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 CREATE TABLE vendas_pagamento (
     id SERIAL PRIMARY KEY,

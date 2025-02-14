@@ -382,7 +382,7 @@ const Entradas = () => {
       observacoes: newEntry.observacoes,
       itens: newEntry.itens.map((item) => ({
         produto_id: item.productId,
-        quantidade: parseInt(item.quantity, 10), // Converte para inteiro
+        quantidade: parseFloat(item.quantity), // Converte para inteiro
         preco_custo: parseFloat(item.cost), // Converte para número
       })),
     };
@@ -515,7 +515,7 @@ const Entradas = () => {
                   <TableCell>{entry.entrada.fornecedor_nome}</TableCell>
                   <TableCell>
                     <ActionIcon onClick={() => openModal(entry.itens)}>
-                    <FaEdit size={16} style={{ color: "#FF9800" }} />
+                      <FaEdit size={16} style={{ color: "#FF9800" }} />
                     </ActionIcon>
                     <ActionIcon onClick={() => openConfirmDeleteModal(entry.entrada)}>
                       <FaTrash color="#e63946" />
@@ -548,7 +548,7 @@ const Entradas = () => {
                   <TableRow key={index}>
                     <TableCell>{item.produto_id}</TableCell>
                     <TableCell>{item.produto_nome}</TableCell>
-                    <TableCell>{item.quantidade}</TableCell>
+                    <TableCell>{parseFloat(item.quantidade).toFixed(2)}</TableCell>
                     <TableCell>R$ {parseFloat(item.preco_custo).toFixed(2)}</TableCell>
                     <TableCell>
                       R$ {(item.quantidade * item.preco_custo).toFixed(2)}
@@ -706,13 +706,16 @@ const Entradas = () => {
 
 
                 <Input
-                  type="number"
+                  type="text"
                   placeholder="Quantidade"
                   value={newItem.quantity}
-                  onChange={(e) =>
-                    setNewItem((prev) => ({ ...prev, quantity: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    // Substitui vírgula por ponto e permite apenas números e ponto decimal
+                    const formattedValue = e.target.value.replace(",", ".");
+                    setNewItem((prev) => ({ ...prev, quantity: formattedValue }));
+                  }}
                 />
+
                 <Input
                   type="number"
                   placeholder="Custo"
