@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from "react";
 import {
   Container,
-  LeftSection,
-  RightSection,
   HighlightedProduct,
   InputGroup,
   Button,
-  TotalDisplay,
-  TotalContainer,
   ProductModal,
   ProductModalContent,
   ProductCard,
   IconButton,
   IconButtonGroup,
-  ProductTableWrapper,
-  OperatorInfo,
   ModalOverlay,
   SettingsModal,
   SettingsIcon,
   SettingsLabel,
   SettingsSelect,
-  SettingsInput,
   SettingsCheckbox,
   SettingsButton,
   Notification,
@@ -34,22 +27,53 @@ import {
   PaymentHistoryList,
   ButtonGroup,
   ProductImage,
-  ContainerTableTotal,
   ProductImageContainer,
+  SectionTitle,
 } from "./styles";
-import { FaTrash, FaShoppingCart, FaSearch, FaBarcode, FaMoneyBillWave, FaTimes, FaUndo, FaArrowLeft, FaPercentage, FaTag, FaTags, FaCog, FaCheckCircle, FaExclamationCircle, FaPrint } from "react-icons/fa";
-import { CategorySection } from "./styles";
-import { ProductGrid } from "./styles";
-import { CloseButton } from "./styles";
-import { DivDesc } from "./styles";
+
+import {
+  FaShoppingCart,
+  FaSearch,
+  FaMoneyBillWave,
+  FaTimes,
+  FaUndo,
+  FaTag,
+  FaTags,
+  FaCog,
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaPrint
+} from "react-icons/fa";
+
+import {
+  CategorySection,
+  ProductGrid,
+  CloseButton,
+  DivDesc
+} from "./styles";
+
 import api from "../../../api";
+
 import {
   ConfirmModalContainer,
   ConfirmCancelButton,
   ConfirmButton,
   ConfirmModalContent,
-  ConfirmButtonContainer
-} from '../../../styles/utils'
+  ConfirmButtonContainer,
+  RightSection,
+  LeftSection,
+  ContentWrapper,
+  ReceiptContainer,
+  FixedFooter,
+  TotalContainer,
+  TotalDisplay,
+  OperatorInfo,
+  ReceiptItem,
+  BackButton
+} from '../../../styles/utils';
+
+
+import { useNavigate } from "react-router-dom";
 
 const PDV = () => {
 
@@ -107,6 +131,24 @@ const PDV = () => {
   const [isConfirmPrintModalOpen, setIsConfirmPrintModalOpen] = useState(false);
   const [shouldPrint, setShouldPrint] = useState(false);
 
+
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const navigate = useNavigate()
+
+  // 🔹 Fecha o modal sem sair
+  const closeConfirmModal = () => {
+    setIsConfirmModalOpen(false);
+  };
+
+  const handleConfirmModal = () => {
+    localStorage.removeItem("tokenPdv")
+    setIsConfirmModalOpen(true)
+  }
+
+  const confirmBackToHome = () => {
+    navigate("/home"); // 🔹 Redireciona para Home
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -473,20 +515,20 @@ const PDV = () => {
   const handleBarcodeEnter = (e) => {
     if (e.key === "Enter") {
       const product = products.find((p) => p.codigo_barras === barcode);
-  
+
       if (product) {
         const existingProduct = cart.find((item) => item.id === product.id);
         const quantidadeSelecionada = quantity > 0 ? quantity : 1; // Respeita a quantidade digitada
-  
+
         let updatedCart;
         if (existingProduct) {
           updatedCart = cart.map((item) =>
             item.id === product.id
               ? {
-                  ...item,
-                  quantity: item.quantity + quantidadeSelecionada, // Usa a quantidade digitada
-                  total: Number(item.total) + Number(product.preco_venda) * quantidadeSelecionada, // Recalcula o total
-                }
+                ...item,
+                quantity: item.quantity + quantidadeSelecionada, // Usa a quantidade digitada
+                total: Number(item.total) + Number(product.preco_venda) * quantidadeSelecionada, // Recalcula o total
+              }
               : item
           );
         } else {
@@ -499,21 +541,21 @@ const PDV = () => {
             },
           ];
         }
-  
+
         setCart(updatedCart);
-  
+
         // Atualiza o produto destacado IMEDIATAMENTE
         setHighlightedProduct({
           ...product,
           quantity: quantidadeSelecionada,
           total: Number(product.preco_venda) * quantidadeSelecionada,
         });
-  
+
         // Atualiza o total geral
         setTotalGeneral(
           updatedCart.reduce((sum, item) => sum + Number(item.finalTotal || item.total), 0)
         );
-  
+
         // Limpa campos de entrada
         setBarcode("");
         setQuantity(0); // Mantém 1 para evitar comportamento estranho
@@ -523,7 +565,7 @@ const PDV = () => {
       }
     }
   };
-  
+
 
 
   const addToCart = () => {
@@ -531,18 +573,18 @@ const PDV = () => {
       showMessage("Selecione um produto antes de adicionar.", "error");
       return;
     }
-  
+
     const existingProduct = cart.find((item) => item.id === highlightedProduct.id);
-  
+
     let updatedCart;
     if (existingProduct) {
       updatedCart = cart.map((item) =>
         item.id === highlightedProduct.id
           ? {
-              ...item,
-              quantity: item.quantity + quantity, // Incrementa a quantidade
-              total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
-            }
+            ...item,
+            quantity: item.quantity + quantity, // Incrementa a quantidade
+            total: item.total + highlightedProduct.preco_venda * quantity, // Atualiza o total
+          }
           : item
       );
     } else {
@@ -555,21 +597,21 @@ const PDV = () => {
         },
       ];
     }
-  
+
     setCart(updatedCart);
     setTotalGeneral(
       updatedCart.reduce((sum, item) => sum + (item.finalTotal || item.total), 0)
     );
     setRemainingTotal(totalGeneral - totalPaid); // Ajusta o valor restante com base no total pago
-  
+
     // **Zera o produto selecionado para obrigar a escolha de um novo produto**
     setHighlightedProduct({ nome: "Nenhum produto selecionado" });
-  
+
     // **Zera os campos de entrada**
     setBarcode("");
     setQuantity(0);
   };
-  
+
 
   const cancelPayment = () => {
     setTotalPaid(0); // Reseta o total pago
@@ -587,97 +629,23 @@ const PDV = () => {
 
   return (
     <>
-
-      {isConfirmPrintModalOpen && (
-        <ConfirmModalContainer>
-          <ConfirmModalContent>
-            <h2>Deseja imprimir o comprovante?</h2>
-            <p>Selecione se deseja gerar e imprimir o cupom fiscal.</p>
-            <ConfirmButtonContainer>
-              <ConfirmButton onClick={() => handleFinalizeSale(true)}>Sim, imprimir</ConfirmButton>
-              <ConfirmCancelButton onClick={() => handleFinalizeSale(false)}>Não, apenas finalizar</ConfirmCancelButton>
-            </ConfirmButtonContainer>
-          </ConfirmModalContent>
-        </ConfirmModalContainer>
-      )}
-
-      {/* Modal para Confirmar Cancelamento da Venda */}
-      {isConfirmCancelSaleOpen && (
-        <ConfirmModalContainer>
-          <ConfirmModalContent>
-            <h2>Confirmar Cancelamento da Venda</h2>
-            <p>Tem certeza de que deseja cancelar toda a venda?</p>
-            <ConfirmButtonContainer>
-              <ConfirmButton onClick={confirmCancelSale}>Sim, Cancelar Venda</ConfirmButton>
-              <ConfirmCancelButton onClick={closeConfirmCancelSaleModal}>Cancelar</ConfirmCancelButton>
-            </ConfirmButtonContainer>
-          </ConfirmModalContent>
-        </ConfirmModalContainer>
-      )}
-
-      {/* Modal para Confirmar Cancelamento de Itens */}
-      {isConfirmCancelItemOpen && (
-        <ConfirmModalContainer>
-          <ConfirmModalContent>
-            <h2>Confirmar Cancelamento de Itens</h2>
-            <p>Tem certeza de que deseja remover os itens selecionados?</p>
-            <ConfirmButtonContainer>
-              <ConfirmButton onClick={confirmCancelItems}>Sim, Remover Itens</ConfirmButton>
-              <ConfirmCancelButton onClick={closeConfirmCancelItemModal}>Cancelar</ConfirmCancelButton>
-            </ConfirmButtonContainer>
-          </ConfirmModalContent>
-        </ConfirmModalContainer>
-      )}
-
-      {message && (
-        <Notification type={message.type}>
-          {message.type === "success" ? (
-            <FaCheckCircle size={20} />
-          ) : (
-            <FaExclamationCircle size={20} />
-          )}
-          {message.text}
-        </Notification>
-      )}
-      <DivDesc>
-        {highlightedProduct && (
-          <HighlightedProduct>
-            <h3>{highlightedProduct.nome}</h3>
-          </HighlightedProduct>
-        )}
-      </DivDesc>
-
-      <SettingsIcon onClick={() => setIsSettingsModalOpen(true)}>
-        <FaCog />
-      </SettingsIcon>
-
       <Container>
-        {/* Modal de Configuração */}
-        {isSettingsModalOpen && (
-          <ModalOverlay>
-            <SettingsModal>
-              <h2>Configurações do PDV</h2>
-              <SettingsLabel>Impressão Automática de Recibo:</SettingsLabel>
-              <SettingsCheckbox
-                type="checkbox"
-                checked={autoPrint}
-                onChange={() => setAutoPrint(!autoPrint)}
-              /> Ativar
+        <DivDesc>
+          {highlightedProduct && (
+            <HighlightedProduct>
+              <h3>{highlightedProduct.nome}</h3>
+            </HighlightedProduct>
+          )}
+        </DivDesc>
 
-              <SettingsButton onClick={() => setIsSettingsModalOpen(false)}>
-                Salvar Configurações
-              </SettingsButton>
-            </SettingsModal>
-          </ModalOverlay>
-        )}
-
-        <LeftSection>
-          <ProductImageContainer>
-            <ProductImage
-              src={highlightedProduct?.imagem ? `data:image/jpeg;base64,${highlightedProduct.imagem}` : "https://via.placeholder.com/150"}
-              alt={highlightedProduct?.nome || "Produto"}
-            />
-          </ProductImageContainer>
+        <ContentWrapper>
+          <LeftSection>
+            <ProductImageContainer>
+              <ProductImage
+                src={highlightedProduct?.imagem ? `data:image/jpeg;base64,${highlightedProduct.imagem}` : "https://via.placeholder.com/150"}
+                alt={highlightedProduct?.nome || "Produto"}
+              />
+            </ProductImageContainer>
 
 
             <InputGroup>
@@ -712,82 +680,153 @@ const PDV = () => {
               <input type="text" value={`R$ ${totalItem.toFixed(2)}`} readOnly />
             </InputGroup>
 
-          <IconButtonGroup>
-            <IconButton title="Aplicar desconto no item" onClick={() => setIsDiscountModalOpen(true)}>
-              <FaTag />
-            </IconButton>
+            <IconButtonGroup>
+              <IconButton title="Aplicar desconto no item" onClick={() => setIsDiscountModalOpen(true)}>
+                <FaTag />
+              </IconButton>
 
-            <IconButton title="Aplicar desconto no total" onClick={() => setIsTotalDiscountModalOpen(true)}>
-              <FaTags />
-            </IconButton>
+              <IconButton title="Aplicar desconto no total" onClick={() => setIsTotalDiscountModalOpen(true)}>
+                <FaTags />
+              </IconButton>
 
-            <IconButton title="Adicionar ao carrinho" onClick={addToCart}>
-              <FaShoppingCart />
-            </IconButton>
+              <IconButton title="Adicionar ao carrinho" onClick={addToCart}>
+                <FaShoppingCart />
+              </IconButton>
 
-            <IconButton title="Buscar produtos" onClick={() => setIsProductModalOpen(true)}>
-              <FaSearch />
-            </IconButton>
+              <IconButton title="Buscar produtos" onClick={() => setIsProductModalOpen(true)}>
+                <FaSearch />
+              </IconButton>
 
-            <IconButton title="Finalizar compra" onClick={() => openPaymentModal()}>
-              <FaMoneyBillWave />
-            </IconButton>
+              <IconButton title="Finalizar compra" onClick={() => openPaymentModal()}>
+                <FaMoneyBillWave />
+              </IconButton>
 
-            <IconButton title="Cancelar venda" onClick={openConfirmCancelSaleModal}>
-              <FaTimes />
-            </IconButton>
+              <IconButton title="Cancelar venda" onClick={openConfirmCancelSaleModal}>
+                <FaTimes />
+              </IconButton>
 
-            <IconButton title="Cancelar itens selecionados" disabled={cart.length === 0} onClick={() => setIsCancelItemModalOpen(true)}>
-              <FaUndo />
-            </IconButton>
+              <IconButton title="Cancelar itens selecionados" disabled={cart.length === 0} onClick={() => setIsCancelItemModalOpen(true)}>
+                <FaUndo />
+              </IconButton>
 
-            <IconButton title="Reimprimir Cupom" onClick={openReprintModal}>
-              <FaPrint />
-            </IconButton>
-          </IconButtonGroup>
-        </LeftSection>
+              <IconButton title="Reimprimir Cupom" onClick={openReprintModal}>
+                <FaPrint />
+              </IconButton>
+            </IconButtonGroup>
+          </LeftSection>
 
-        <RightSection>
-          <TotalContainer>
-            <TotalDisplay>
-              Total Geral: R$ {(Number(totalGeneral) || 0).toFixed(2)}
-            </TotalDisplay>
-          </TotalContainer>
-          <ContainerTableTotal>
-            <ProductTableWrapper>
-              <thead>
-                <tr>
-                  <th>Imagem</th>
-                  <th>Código de Barras</th>
-                  <th>Produto</th>
-                  <th>Qtd</th>
-                  <th>Preço Total</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <img src={`data:image/jpeg;base64,${product.imagem}`} alt={product.nome} />
-                    </td>
-                    <td>{product.codigo_barras}</td>
-                    <td>{product.nome}</td>
-                    <td>{product.quantity}</td>
-                    <td>R$ {product.total}</td>
-                    <td>
-                      <IconButton onClick={() => setCart(cart.filter((p) => p.id !== product.id))}>
-                        <FaTrash />
-                      </IconButton>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </ProductTableWrapper>
-          </ContainerTableTotal>
+          <RightSection>
+            <SectionTitle>🛒 Itens Adicionados</SectionTitle>
+            <ReceiptContainer>
+              {cart.map((product) => (
+                <ReceiptItem key={product.id}>
+                  <div className="info">
+                    <span className="nome">{product.nome}</span>
+                    <span className="codigo-barras">{product.codigo_barras}</span>
+                    <span className="preco">R$ {product.total.toFixed(2)}</span>
+                  </div>
+                  <div className="quantidade">
+                    <IconButton onClick={() => decreaseQuantity(product.id)}>➖</IconButton>
+                    <span>{product.quantity}</span>
+                    <IconButton onClick={() => increaseQuantity(product.id)}>➕</IconButton>
+                  </div>
+                  <div className="remover">
+                    <IconButton onClick={() => setCart(cart.filter((p) => p.id !== product.id))}>
+                      ❌
+                    </IconButton>
+                  </div>
+                </ReceiptItem>
+              ))}
+            </ReceiptContainer>
 
-        </RightSection>
+            <FixedFooter>
+              <TotalContainer>
+                <TotalDisplay>
+                  Total Geral: R$ {(Number(totalGeneral) || 0).toFixed(2)}
+                </TotalDisplay>
+              </TotalContainer>
+            </FixedFooter>
 
+          </RightSection>
+
+        </ContentWrapper>
+        <OperatorInfo>
+          Operador: {operatorNumber} - {operatorName} | Data:{" "}
+          {currentTime.toLocaleDateString()} | Hora:{" "}
+          {currentTime.toLocaleTimeString()}
+        </OperatorInfo>
+
+        {isConfirmPrintModalOpen && (
+          <ConfirmModalContainer>
+            <ConfirmModalContent>
+              <h2>Deseja imprimir o comprovante?</h2>
+              <p>Selecione se deseja gerar e imprimir o cupom fiscal.</p>
+              <ConfirmButtonContainer>
+                <ConfirmButton onClick={() => handleFinalizeSale(true)}>Sim, imprimir</ConfirmButton>
+                <ConfirmCancelButton onClick={() => handleFinalizeSale(false)}>Não, apenas finalizar</ConfirmCancelButton>
+              </ConfirmButtonContainer>
+            </ConfirmModalContent>
+          </ConfirmModalContainer>
+        )}
+
+        {/* Modal para Confirmar Cancelamento da Venda */}
+        {isConfirmCancelSaleOpen && (
+          <ConfirmModalContainer>
+            <ConfirmModalContent>
+              <h2>Confirmar Cancelamento da Venda</h2>
+              <p>Tem certeza de que deseja cancelar toda a venda?</p>
+              <ConfirmButtonContainer>
+                <ConfirmButton onClick={confirmCancelSale}>Sim, Cancelar Venda</ConfirmButton>
+                <ConfirmCancelButton onClick={closeConfirmCancelSaleModal}>Cancelar</ConfirmCancelButton>
+              </ConfirmButtonContainer>
+            </ConfirmModalContent>
+          </ConfirmModalContainer>
+        )}
+
+        {/* Modal para Confirmar Cancelamento de Itens */}
+        {isConfirmCancelItemOpen && (
+          <ConfirmModalContainer>
+            <ConfirmModalContent>
+              <h2>Confirmar Cancelamento de Itens</h2>
+              <p>Tem certeza de que deseja remover os itens selecionados?</p>
+              <ConfirmButtonContainer>
+                <ConfirmButton onClick={confirmCancelItems}>Sim, Remover Itens</ConfirmButton>
+                <ConfirmCancelButton onClick={closeConfirmCancelItemModal}>Cancelar</ConfirmCancelButton>
+              </ConfirmButtonContainer>
+            </ConfirmModalContent>
+          </ConfirmModalContainer>
+        )}
+
+        {message && (
+          <Notification type={message.type}>
+            {message.type === "success" ? (
+              <FaCheckCircle size={20} />
+            ) : (
+              <FaExclamationCircle size={20} />
+            )}
+            {message.text}
+          </Notification>
+        )}
+
+
+        <SettingsIcon onClick={() => setIsSettingsModalOpen(true)}>
+          <FaCog />
+        </SettingsIcon>
+
+        {/* Modal de Configuração */}
+        {isSettingsModalOpen && (
+          <ModalOverlay>
+            <SettingsModal>
+              <h2>Configurações do PDV</h2>
+              <SettingsButton onClick={() => handleConfirmModal()}>
+                Home
+              </SettingsButton>
+              <SettingsButton onClick={() => setIsSettingsModalOpen(false)}>
+                Voltar
+              </SettingsButton>
+            </SettingsModal>
+          </ModalOverlay>
+        )}
 
         {isDiscountModalOpen && (
           <ProductModal>
@@ -1220,11 +1259,21 @@ const PDV = () => {
             </PaymentModalContainer>
           </ModalOverlay>
         )}
-        <OperatorInfo>
-          Operador: {operatorNumber} - {operatorName} | Data:{" "}
-          {currentTime.toLocaleDateString()} | Hora:{" "}
-          {currentTime.toLocaleTimeString()}
-        </OperatorInfo>
+
+        {/* 🔹 Modal de Confirmação */}
+        {isConfirmModalOpen && (
+          <ConfirmModalContainer>
+            <ConfirmModalContent>
+              <h2>Confirmar saída do PDV</h2>
+              <p>Tem certeza de que deseja voltar para a Home?</p>
+              <ConfirmButtonContainer>
+                <ConfirmButton onClick={confirmBackToHome}>Sim, Voltar</ConfirmButton>
+                <ConfirmCancelButton onClick={closeConfirmModal}>Cancelar</ConfirmCancelButton>
+              </ConfirmButtonContainer>
+            </ConfirmModalContent>
+          </ConfirmModalContainer>
+        )}
+
       </Container>
     </>
   );

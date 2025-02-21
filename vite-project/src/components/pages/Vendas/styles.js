@@ -2,9 +2,11 @@ import styled, {keyframes } from "styled-components";
 
 export const Container = styled.div`
   display: flex;
-  gap: 20px; 
+  flex-direction: column;
+  height: 100vh; /* Garante que o container ocupe toda a tela */
   padding: 8px;
-  height: 88vh;
+  position: relative;
+  
 `;
 
 // 🔹 Grupo de Botões
@@ -52,20 +54,132 @@ export const ProductDisplay = styled.div`
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `;
 
-export const LeftSection = styled.div`
+export const ReceiptContainer = styled.div`
   display: flex;
   flex-direction: column;
-  background: #102c57;
-  border-radius: 10px;
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  width: 500px; /* 🔹 Largura fixa para manter padrão */
+  height: 450px; /* 🔹 Altura fixa para garantir visual equilibrado */
+  overflow-y: auto;
+  border: 2px dashed rgba(0, 0, 0, 0.2); /* Estilo cupom */
+  position: relative;
+
+  /* Scroll suave para evitar rolagem abrupta */
+  &::-webkit-scrollbar {
+    width: 14px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 132, 0, 1);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+  }
+`;
+
+
+export const ReceiptItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    width: 60%;
+  }
+
+  .nome {
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #333;
+  }
+
+  .preco {
+    font-size: 0.8rem;
+    color: #777;
+  }
+
+  .quantidade {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .remover {
+    margin-left: 10px;
+  }
+`;
+
+export const FixedFooter = styled.div`
+  position: sticky;
+  bottom: 0;
+
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  width: 100%;
+`;
+
+export const SectionTitle = styled.h3`
+  font-size: 2.3rem;
+  font-weight: bold;
+  background-color: white;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+`;
+
+export const ContentWrapper = styled.div`
+  display: flex;
+  flex: 1; /* Ocupa todo o espaço disponível entre o Header e o OperatorInfo */
+  gap: 20px;
+  overflow: hidden; /* Impede que o conteúdo extrapole */
+`;
+
+export const LeftSection = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(145deg, #102c57, #0056b3);
+  border-radius: 32px;
   padding: 20px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  height: 79vh;
-  width: 40%;
+  height: 100%;
   color: white;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
+  overflow: auto;
 `;
+
+export const RightSection = styled.div`
+  flex: 1;
+  background: linear-gradient(145deg, #102c57, #0056b3);
+  border-radius: 32px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  height: 100%;
+  max-width: 35%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* Mantém o rodapé fixo no final */
+`;
+
 
 export const ProductImageContainer = styled.div`
   display: flex;
@@ -137,16 +251,7 @@ export const Button = styled.button`
   margin-bottom: 8px;
 `;
 
-export const RightSection = styled.div`
-  flex: 2;
-  background: #102c57;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  height: 79vh;
-  max-width: 900px;
-  max-height: 600px;
-`;
+
 
 export const ProductGrid = styled.div`
   display: grid;
@@ -507,23 +612,16 @@ export const HighlightedTotal = styled.div`
 `;
 
 export const OperatorInfo = styled.div`
-  position: fixed;
-  bottom: 0px;
-  left: 0;
+  position: relative;
   width: 100%;
-  background: #102C57; /* Azul escuro profissional */
-  color: #FFFFFF; /* Branco */
+  background: linear-gradient(145deg, #102c57, #0056b3);
+  color: #FFFFFF;
   text-align: center;
   padding: 12px 0;
   font-size: 1.2rem;
   font-weight: bold;
-
-  
-  /* Responsividade */
-  @media (max-width: 768px) {
-    font-size: 1rem;
-    padding: 8px 0;
-  }
+  margin-top: 8px;
+  border-radius: 32px;
 `;
 
 const fadeIn = keyframes`
@@ -581,8 +679,8 @@ export const Notification = styled.div`
 
 export const SettingsIcon = styled.div`
   position: absolute;
-  top: 15px;
-  right: 20px;
+  top: 30px;
+  right: 60px;
   cursor: pointer;
   font-size: 2rem;
   color: #FFD700; /* Dourado para destacar */
@@ -598,20 +696,20 @@ export const SettingsModal = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #102C57; /* Azul escuro profissional */
+  background: white; /* Azul escuro profissional */
   color: white;
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  width: 350px;
-  max-width: 90%;
+  width: 700px;
+  max-width: 100%;
   text-align: center;
   z-index: 10000;
 
   h2 {
     font-size: 1.5rem;
     margin-bottom: 15px;
-    color: #FFD700; /* Dourado para destaque */
+    color: #000; /* Dourado para destaque */
   }
 `;
 
@@ -697,16 +795,18 @@ export const DivDesc = styled.div`
   display: flex; /* Para centralizar itens dentro do DivDesc */
   justify-content: center; /* Centraliza horizontalmente */
   align-items: center; /* Centraliza verticalmente */
+  margin-bottom: 16px;
 `;
 
 export const HighlightedProduct = styled.div`
-  background: #102C57; /* Azul escuro sofisticado */
+  background: linear-gradient(145deg, #102c57, #0056b3);
   color:rgb(255, 255, 255); /* Branco puro para melhor contraste */
   font-size: 1.8rem;
   font-weight: bold;
   text-align: center;
-  width: 100%;
+  width: 95%;
   padding: 10px; /* Melhor espaçamento */
+  border-radius: 32px;
 
   /* Layout responsivo */
   display: flex;
@@ -737,11 +837,12 @@ export const HighlightedProduct = styled.div`
 // 🔹 Container do Total
 export const TotalContainer = styled.div`
   background: #ffffff;
-  padding: 15px;
+  padding: 12px;
   border-radius: 8px;
   text-align: center;
-  margin-bottom: 15px;
+  margin-top: 8px;
 `;
+
 
 export const ProductTable = styled.div`
   width: 100%;
@@ -931,10 +1032,6 @@ button {
 
 // 🔹 Texto do Total
 export const TotalDisplay = styled.p`
-  font-size: 2.5rem;
+  font-size: 2.4rem;
   font-weight: bold;
-  color: #333;
-  span {
-    color: #28a745;
-  }
 `;

@@ -18,7 +18,6 @@ import Cadastros from "./components/pages/cadastros";
 import Operadores from "./components/pages/Operadores";
 import Users from "./components/pages/LoginUser"; // 🔹 Tela de Login
 import UsuariosGerenciamento from './components/pages/Usuarios';
-import { ConfirmButton, ConfirmCancelButton, ConfirmModalContainer, ConfirmModalContent, ConfirmButtonContainer, BackButton } from "./styles/utils";
 import Pedidos from "./components/pages/Pedidos";
 
 // 🔹 Proteção de Rotas (Exige Login)
@@ -34,7 +33,6 @@ const PrivateRoutePdv = ({ children }) => {
 
 function Layout() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
@@ -68,71 +66,13 @@ function Layout() {
         <Route path="/financeiro" element={<PrivateRouteUsers><Financeiro /></PrivateRouteUsers>} />
         <Route path="/pedidos" element={<PrivateRouteUsers><Pedidos /></PrivateRouteUsers>} />
         <Route path="/cadastros/usuarios" element={<PrivateRouteUsers><UsuariosGerenciamento /></PrivateRouteUsers>} />
-
-
-        {/* 🔹 Área do PDV (Somente para usuários do PDV) */}
-        <Route path="/vendas" element={
-          <PrivateRoutePdv>
-            <PdvWithBackButton /> {/* 🔹 Novo Componente que exibe o botão de voltar */}
-          </PrivateRoutePdv>
-        } />
-
+        <Route path="/vendas" element={<PDV />} />
         {/* 🔹 Logout */}
         <Route path="/logout" element={<Logout />} />
       </Routes>
     </>
   );
 }
-
-// 🔹 Componente PDV que inclui um botão de voltar e remove o tokenPdv com confirmação
-const PdvWithBackButton = () => {
-  const navigate = useNavigate();
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // ✅ Estado do modal de confirmação
-
-  // 🔹 Exibe o modal antes de sair do PDV
-  const handleBackToHome = () => {
-    setIsConfirmModalOpen(true);
-  };
-
-  // 🔹 Confirma saída do PDV e limpa token
-  const confirmBackToHome = () => {
-    localStorage.removeItem("tokenPdv"); // 🔹 Remove o tokenPdv ao sair do PDV
-    navigate("/home"); // 🔹 Redireciona para Home
-  };
-
-  // 🔹 Fecha o modal sem sair
-  const closeConfirmModal = () => {
-    setIsConfirmModalOpen(false);
-  };
-
-  return (
-    <div>
-      {/* 🔹 Botão para sair do PDV com confirmação */}
-      <BackButton
-        onClick={handleBackToHome}
-      >
-        X
-      </BackButton>
-
-      {/* 🔹 Modal de Confirmação */}
-      {isConfirmModalOpen && (
-        <ConfirmModalContainer>
-          <ConfirmModalContent>
-            <h2>Confirmar saída do PDV</h2>
-            <p>Tem certeza de que deseja voltar para a Home?</p>
-            <ConfirmButtonContainer>
-              <ConfirmButton onClick={confirmBackToHome}>Sim, Voltar</ConfirmButton>
-              <ConfirmCancelButton onClick={closeConfirmModal}>Cancelar</ConfirmCancelButton>
-            </ConfirmButtonContainer>
-          </ConfirmModalContent>
-        </ConfirmModalContainer>
-      )}
-
-      {/* 🔹 Componente PDV */}
-      <PDV />
-    </div>
-  );
-};
 
 function App() {
   return (

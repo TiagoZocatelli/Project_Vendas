@@ -416,6 +416,66 @@ def cancelar_oferta(id):
 # ------------------------------
 # 🚀 CRUD de Pedidos
 # ------------------------------
+
+
+@app.route("/pedidos_pendentes", methods=["GET"])
+def listar_pedidos_pendentes():
+    """Retorna a lista de pedidos ordenados pela data mais recente, incluindo os itens"""
+    conn = get_db_connection()
+    pedidos = {}
+
+    try:
+        with conn.cursor() as cur:
+            # Buscar todos os pedidos
+            cur.execute("""
+                SELECT p.id, p.cliente, p.data_pedido, p.status, p.total, p.taxa_entrega, p.observacao,
+                       pi.produto_id, prod.nome AS produto_nome, pi.quantidade, pi.preco_unitario, pi.total AS total_item
+                FROM pedidos p
+                LEFT JOIN pedido_itens pi ON p.id = pi.pedido_id
+                LEFT JOIN produtos prod ON pi.produto_id = prod.id
+                WHERE p.status = 'P'
+                ORDER BY p.data_pedido DESC
+            """)
+            
+            rows = cur.fetchall()
+            colnames = [desc[0] for desc in cur.description]
+
+            # Organizar pedidos e seus itens
+            for row in rows:
+                row_dict = dict(zip(colnames, row))
+                pedido_id = row_dict.pop("id")
+
+                if pedido_id not in pedidos:
+                    pedidos[pedido_id] = {
+                        "id": pedido_id,
+                        "cliente": row_dict["cliente"],
+                        "data_pedido": row_dict["data_pedido"],
+                        "status": row_dict["status"],
+                        "total": row_dict["total"],
+                        "taxa_entrega": row_dict["taxa_entrega"],
+                        "observacao": row_dict["observacao"],
+                        "itens": []
+                    }
+
+                # Se o pedido tiver itens, adiciona na lista de itens
+                if row_dict["produto_id"]:
+                    pedidos[pedido_id]["itens"].append({
+                        "produto_id": row_dict["produto_id"],
+                        "produto_nome": row_dict["produto_nome"],
+                        "quantidade": row_dict["quantidade"],
+                        "preco_unitario": row_dict["preco_unitario"],
+                        "total_item": row_dict["total_item"]
+                    })
+
+        return jsonify(list(pedidos.values()))
+
+    except Exception as e:
+        print(f"Erro ao listar pedidos: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
 @app.route("/pedidos", methods=["GET"])
 def listar_pedidos():
     """Retorna a lista de pedidos ordenados pela data mais recente, incluindo os itens"""

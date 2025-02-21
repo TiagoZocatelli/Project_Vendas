@@ -433,10 +433,10 @@ const Fornecedores = () => {
               </FormContainer>
             </form>
             <ModalActions>
-              <Button onClick={addOrUpdateSupplier}>
+              <ConfirmButton onClick={addOrUpdateSupplier}>
                 {editingIndex !== null ? "Atualizar" : "Adicionar"}
-              </Button>
-              <Button onClick={closeModal}>Cancelar</Button>
+              </ConfirmButton>
+              <ConfirmCancelButton onClick={closeModal}>Cancelar</ConfirmCancelButton>
             </ModalActions>
           </ModalContent>
         </ModalOverlay>

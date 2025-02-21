@@ -15,6 +15,8 @@ import {
     TableCell,
     ActionIcon,
     Select,
+    ConfirmCancelButton,
+    ConfirmButton,
 } from '../../../styles/utils'
 import InputMask from "react-input-mask";
 import { Notification } from "../../../styles/utils";
@@ -331,8 +333,8 @@ const Filiais = () => {
                                 </Select>
 
                             </AddProductForm>
-                            <Button type="submit">Salvar</Button>
-                            <Button onClick={handleCloseModal}>Cancelar</Button>
+                            <ConfirmButton type="submit">Salvar</ConfirmButton>
+                            <ConfirmCancelButton onClick={handleCloseModal}>Cancelar</ConfirmCancelButton>
                         </form>
                     </ModalContent>
                 </ModalContainer>

@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
-import { FaCheck, FaTrash, FaSearch, FaPlus, FaMinus, FaTimes, FaList } from "react-icons/fa";
+import { FaCheck, FaSearch, FaPlus, FaTimes, FaList } from "react-icons/fa";
 import {
-    HeaderContainer, Title, ButtonContainer, IconButton, RightSection, LeftSection, Container, TotalContainer,
-    TotalDisplay, ContentWrapper, ButtonGroup, SectionTitle, ScrollableTableContainer, TableIcon, SearchContainer,
-    SearchInput, CategoryContainer, CategoryButton, ProductsGrid, ProductCard, SelectButton, ModalOverlay, ModalContent,
-    CloseButton, ModalActions, ObservacaoInput, TaxaInput, ButtonTotal, FixedFooter, OperatorInfo, ProductTableWrapper,
+    IconButton, Container, SectionTitle, ScrollableTableContainer, SearchContainer,
+    SearchInput, CategoryContainer, ProductsGrid, ProductCard, ModalOverlay, ModalContent,
+    CloseButton, ModalActions, ObservacaoInput, TaxaInput, ProductTableWrapper,
     ListaPedidosGrid,
     PedidoCard,
     ModalProductCard,
     SearchInputModal,
     CategoryFilterContainer,
-    SelectButtonModal,
     ModalPedidosContent,
     ListaPedidosScrollable,
     TitlePedidos,
@@ -18,9 +16,27 @@ import {
     TitlePedido,
     PedidoInfo,
     ModalButtons,
-    StyledButton,
-    InputTaxa
+    InputTaxa,
+    ObservacaoContainer,
 } from "./styles";
+
+import {
+    HeaderContainer,
+    Title,
+    ButtonContainer,
+    IconButtonHeader,
+    RightSection,
+    LeftSection,
+    ContentWrapper,
+    ReceiptContainer,
+    FixedFooter,
+    TotalContainer,
+    TotalDisplay,
+    OperatorInfo,
+    ReceiptItem
+} from '../../../styles/utils'
+
+import api from "../../../api";
 
 const Pedidos = () => {
     const [products, setProducts] = useState([]);
@@ -30,7 +46,9 @@ const Pedidos = () => {
     const [selectedCategory, setSelectedCategory] = useState("");
     const [pedido, setPedido] = useState([]);
     const [observacao, setObservacao] = useState("");
-    const [taxaAdicional, setTaxaAdicional] = useState(0);
+    const [ClienteNome, setClienteNome] = useState("")
+    const [taxaAdicional, setTaxaAdicional] = useState("");
+    const [descontoTotal, setDescontoTotal] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isListaPedidosOpen, setIsListaPedidosOpen] = useState(false);
     const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
@@ -39,6 +57,8 @@ const Pedidos = () => {
     const [selectedModalCategory, setSelectedModalCategory] = useState("");
     const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
     const [mensagemSucesso, setMensagemSucesso] = useState(""); // 🔹 Estado para mensagem de sucesso
+    const [subtotal, setSubtotal] = useState(0);
+    const [totalPedido, setTotalPedido] = useState(0);
 
 
     const openAddProductModal = () => setIsAddProductModalOpen(true);
@@ -57,20 +77,18 @@ const Pedidos = () => {
     }, []);
 
     const carregarProdutos = () => {
-        fetch("http://localhost:5000/produtos")
-            .then((res) => res.json())
-            .then((data) => {
-                setProducts(data);
-                const categoriasUnicas = [...new Set(data.map((prod) => prod.categoria_nome))];
+        api.get("/produtos")
+            .then((res) => {
+                setProducts(res.data);
+                const categoriasUnicas = [...new Set(res.data.map((prod) => prod.categoria_nome))];
                 setCategories(categoriasUnicas);
             })
             .catch((error) => console.error("Erro ao carregar produtos:", error));
     };
-
+    
     const carregarPedidos = () => {
-        fetch("http://localhost:5000/pedidos")
-            .then((res) => res.json())
-            .then((data) => setPedidos(data))
+        api.get("/pedidos_pendentes")
+            .then((res) => setPedidos(res.data))
             .catch((error) => console.error("Erro ao carregar pedidos:", error));
     };
 
@@ -99,17 +117,20 @@ const Pedidos = () => {
 
     const excluirPedido = async (id) => {
         if (!window.confirm("Tem certeza que deseja excluir este pedido?")) return;
-
+    
         try {
-            await fetch(`http://localhost:5000/pedidos/${id}`, { method: "DELETE" });
+            await api.delete(`/pedidos/${id}`);
             alert("Pedido excluído com sucesso!");
-            setPedidos(pedidos.filter(p => p.id !== id));
-            closePedidoDetalhes();
+    
+            // Remove o pedido da lista sem precisar recarregar a página
+            setPedidos((prevPedidos) => prevPedidos.filter(p => p.id !== id));
+    
         } catch (error) {
             console.error("Erro ao excluir pedido:", error);
             alert("Erro ao excluir pedido!");
         }
     };
+
 
     const filteredProducts = products.filter(
         (product) =>
@@ -152,9 +173,21 @@ const Pedidos = () => {
         setPedido((prevPedido) => prevPedido.filter((item) => item.id !== id));
     };
 
-    const subtotal = pedido.reduce((total, item) => total + item.preco_venda * item.quantity, 0);
-    const totalPedido = subtotal + parseFloat(taxaAdicional || 0);
 
+    useEffect(() => {
+        // Calcula o subtotal somando os produtos sem desconto
+        const subtotalCalculado = pedido.reduce((total, item) => total + item.preco_venda * item.quantity, 0);
+
+        // Soma os descontos aplicados individualmente nos itens
+        const totalDescontoItens = pedido.reduce((total, item) => total + (item.desconto || 0), 0);
+
+        // Calcula o total final considerando os descontos e a taxa adicional
+        const totalFinal = subtotalCalculado - totalDescontoItens - descontoTotal + parseFloat(taxaAdicional || 0);
+
+        // Atualiza os estados
+        setSubtotal(subtotalCalculado);
+        setTotalPedido(totalFinal > 0 ? totalFinal : 0);
+    }, [pedido, descontoTotal, taxaAdicional]);
 
 
     const openModal = () => {
@@ -213,11 +246,16 @@ const Pedidos = () => {
 
     const salvarAlteracoesPedido = async () => {
         if (!pedidoSelecionado) return;
-
+    
         const pedidoAtualizado = {
             cliente: pedidoSelecionado.cliente,
-            total: Number(pedidoSelecionado.itens.reduce((total, item) => total + item.preco_unitario * item.quantidade, 0).toFixed(2)),
-            taxa_entrega: Number(pedidoSelecionado.taxa_entrega),  // 🔹 Atualizando taxa
+            total: Number(
+                pedidoSelecionado.itens.reduce(
+                    (total, item) => total + item.preco_unitario * item.quantidade,
+                    0
+                ).toFixed(2)
+            ),
+            taxa_entrega: Number(pedidoSelecionado.taxa_entrega), // 🔹 Atualizando taxa
             observacao: pedidoSelecionado.observacao,
             itens: pedidoSelecionado.itens.map((item) => ({
                 produto_id: item.produto_id,
@@ -225,37 +263,30 @@ const Pedidos = () => {
                 preco_unitario: Number(item.preco_unitario),
             })),
         };
-
+    
         try {
-            const response = await fetch(`http://localhost:5000/pedidos/${pedidoSelecionado.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pedidoAtualizado),
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
+            const response = await api.put(`/pedidos/${pedidoSelecionado.id}`, pedidoAtualizado);
+            
+            if (response.status === 200) {
                 alert("Pedido atualizado com sucesso!");
                 carregarPedidos();
                 setPedidoSelecionado(null);
             } else {
-                alert(`Erro ao atualizar pedido: ${result.error}`);
+                alert(`Erro ao atualizar pedido: ${response.data?.error || "Erro desconhecido"}`);
             }
         } catch (error) {
             alert("Erro ao conectar com a API");
             console.error("Erro ao atualizar pedido:", error);
         }
-    };
-
+    };    
 
     const finalizarPedido = async () => {
         if (isSubmitting) return;
-
+    
         setIsSubmitting(true);
-
+    
         const pedidoData = {
-            cliente: "Cliente Padrão",  // Pode ser modificado para pegar do usuário
+            cliente: ClienteNome, // Pode ser modificado para pegar do usuário
             total: totalPedido,
             taxa_entrega: parseFloat(taxaAdicional || 0),
             observacao: observacao,
@@ -266,33 +297,34 @@ const Pedidos = () => {
                 total: item.preco_venda * item.quantity
             }))
         };
-
+    
         try {
-            const response = await fetch("http://localhost:5000/pedidos", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pedidoData)
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                alert(`Pedido criado com sucesso! ID: ${result.id}`);
+            const response = await api.post("/pedidos", pedidoData);
+    
+            console.log("Resposta da API:", response); // 🔹 Log da resposta completa
+    
+            if (response.status >= 200 && response.status < 300) {
+                alert(`Pedido criado com sucesso! ID: ${response.data?.id || "ID não disponível"}`);
                 setPedido([]);
                 setObservacao("");
                 setTaxaAdicional(0);
                 setIsModalOpen(false);
             } else {
-                alert(`Erro ao criar pedido: ${result.error}`);
+                console.error("Erro no response:", response); // 🔹 Log detalhado do erro
+                alert(`Erro ao criar pedido: ${response.data?.error || "Erro desconhecido"}`);
             }
         } catch (error) {
-            alert("Erro ao conectar com a API");
-            console.error("Erro ao enviar pedido:", error);
+            console.error("Erro ao conectar com a API:", error.response || error); // 🔹 Log do erro detalhado
+    
+            alert(
+                `Erro ao conectar com a API: ${
+                    error.response?.data?.error || error.message || "Erro desconhecido"
+                }`
+            );
         } finally {
             setIsSubmitting(false);
         }
     };
-
 
     return (
         <>
@@ -300,18 +332,14 @@ const Pedidos = () => {
                 <HeaderContainer>
                     <Title>Pedidos</Title>
                     <ButtonContainer>
-                        <IconButton>
-                            <FaPlus />
-                            <span>Novo Pedido</span>
-                        </IconButton>
-                        <IconButton onClick={openListaPedidos}>
+                        <IconButtonHeader onClick={openListaPedidos}>
                             <FaList />
                             <span>Lista de Pedidos</span>
-                        </IconButton>
-                        <IconButton onClick={openModal}>
+                        </IconButtonHeader>
+                        <IconButtonHeader onClick={openModal}>
                             <FaCheck />
                             <span>Finalizar</span>
-                        </IconButton>
+                        </IconButtonHeader>
                     </ButtonContainer>
                 </HeaderContainer>
 
@@ -329,13 +357,13 @@ const Pedidos = () => {
 
                         <CategoryContainer>
                             {categories.map((category) => (
-                                <ButtonTotal
+                                <IconButtonHeader
                                     key={category}
                                     className={selectedCategory === category ? "active" : ""}
                                     onClick={() => setSelectedCategory(selectedCategory === category ? "" : category)}
                                 >
                                     {category}
-                                </ButtonTotal>
+                                </IconButtonHeader>
                             ))}
                         </CategoryContainer>
 
@@ -350,7 +378,7 @@ const Pedidos = () => {
                                     )}
                                     <p>{product.nome}</p>
                                     <p><strong>R$ {product.preco_venda}</strong></p>
-                                    <SelectButton onClick={() => addToPedido(product)}>Selecionar</SelectButton>
+                                    <IconButtonHeader onClick={() => addToPedido(product)}>Selecionar</IconButtonHeader>
                                 </ProductCard>
                             ))}
                         </ProductsGrid>
@@ -358,32 +386,32 @@ const Pedidos = () => {
 
                     <RightSection>
                         <SectionTitle>🛒 Itens Adicionados</SectionTitle>
-                        <ScrollableTableContainer>
-                            <ProductTableWrapper>
-                                <thead>
-                                    <tr>
-                                        <th>Produto</th>
-                                        <th>Qtd</th>
-                                        <th>Preço Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {pedido.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.nome}</td>
-                                            <td>{item.quantity}</td>
-                                            <td>R$ {(item.preco_venda * item.quantity).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </ProductTableWrapper>
-                        </ScrollableTableContainer>
+                        <ReceiptContainer>
+                            {pedido.map((item) => (
+                                <ReceiptItem key={item.id}>
+                                    <div className="info">
+                                        <span className="nome">{item.nome}</span>
+                                        <span className="preco">R$ {(item.preco_venda * item.quantity).toFixed(2)}</span>
+                                    </div>
+                                    <div className="quantidade">
+                                        <IconButton onClick={() => decreaseQuantity(item.id)}>➖</IconButton>
+                                        <span>{item.quantity}</span>
+                                        <IconButton onClick={() => increaseQuantity(item.id)}>➕</IconButton>
+                                    </div>
+                                    <div className="remover">
+                                        <IconButton onClick={() => removeFromPedido(item.id)}>❌</IconButton>
+                                    </div>
+                                </ReceiptItem>
+                            ))}
+                        </ReceiptContainer>
                         <FixedFooter>
                             <TotalContainer>
                                 <TotalDisplay>Total: R$ {totalPedido.toFixed(2)}</TotalDisplay>
                             </TotalContainer>
                         </FixedFooter>
                     </RightSection>
+
+
                 </ContentWrapper>
 
                 {isModalOpen && (
@@ -392,7 +420,7 @@ const Pedidos = () => {
                             <CloseButton onClick={closeModal}>×</CloseButton>
                             <h2>Finalizar Pedido</h2>
 
-                            {/* 🔹 Tabela com os itens do pedido */}
+                            {/* 🔹 Tabela com os itens do pedido e opção de desconto por item */}
                             <ScrollableTableContainer>
                                 <ProductTableWrapper>
                                     <thead>
@@ -400,21 +428,46 @@ const Pedidos = () => {
                                             <th>Produto</th>
                                             <th>Qtd</th>
                                             <th>Preço Total</th>
+                                            <th>Desconto (R$)</th>
+                                            <th>Preço Final</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {pedido.map((item) => (
+                                        {pedido.map((item, index) => (
                                             <tr key={item.id}>
                                                 <td>{item.nome}</td>
                                                 <td>{item.quantity}</td>
                                                 <td>R$ {(item.preco_venda * item.quantity).toFixed(2)}</td>
+                                                <td>
+                                                    <TaxaInput
+                                                        type="number"
+                                                        value={item.desconto || ""}
+                                                        onChange={(e) => {
+                                                            let desconto = parseFloat(e.target.value) || 0;
+                                                            let precoTotalItem = item.preco_venda * item.quantity;
+
+                                                            if (desconto > precoTotalItem) {
+                                                                alert("O desconto não pode ser maior que o valor do item!");
+                                                                desconto = precoTotalItem;
+                                                            }
+
+                                                            const newPedido = [...pedido];
+                                                            newPedido[index] = { ...item, desconto };
+                                                            setPedido(newPedido);
+                                                        }}
+                                                        placeholder="Desconto por item"
+                                                    />
+                                                </td>
+                                                <td>
+                                                    R$ {((item.preco_venda * item.quantity) - (item.desconto || 0)).toFixed(2)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </ProductTableWrapper>
                             </ScrollableTableContainer>
 
-                            {/* 🔹 Exibição do total e taxa adicional */}
+                            {/* 🔹 Exibição do subtotal, descontos e total final */}
                             <TotalContainer>
                                 <p><strong>Subtotal:</strong> R$ {subtotal.toFixed(2)}</p>
                                 <p><strong>Taxa Adicional:</strong> R$ {parseFloat(taxaAdicional || 0).toFixed(2)}</p>
@@ -423,34 +476,57 @@ const Pedidos = () => {
                                 </TotalDisplay>
                             </TotalContainer>
 
-                            {/* 🔹 Campos de Observação e Taxa Adicional */}
+                            {/* 🔹 Campos de Observação e Nome do Cliente */}
                             <p>Adicione uma observação e taxa adicional:</p>
                             <ObservacaoInput
                                 value={observacao}
                                 onChange={(e) => setObservacao(e.target.value)}
                                 placeholder="Observação..."
                             />
+                            <ObservacaoInput
+                                value={ClienteNome}
+                                onChange={(e) => setClienteNome(e.target.value)}
+                                placeholder="Nome"
+                            />
                             <TaxaInput
                                 type="number"
                                 value={taxaAdicional}
-                                onChange={(e) => setTaxaAdicional(e.target.value)}
+                                onChange={(e) => setTaxaAdicional(parseFloat(e.target.value) || 0)}
                                 placeholder="Taxa Adicional (R$)"
+                            />
+
+                            <TaxaInput
+                                type="number"
+                                value={descontoTotal}
+                                onChange={(e) => {
+                                    let desconto = parseFloat(e.target.value) || "";
+
+                                    if (desconto > subtotal) {
+                                        alert("O desconto total não pode ser maior que o subtotal!");
+                                        desconto = subtotal;
+                                    }
+
+                                    setDescontoTotal(desconto);
+                                }}
+                                placeholder="Desconto no total"
                             />
 
                             {/* 🔹 Botões de ação */}
                             <ModalActions>
-                                <ButtonTotal onClick={closeModal}>
+                                <IconButtonHeader onClick={closeModal}>
                                     <FaTimes /> Cancelar
-                                </ButtonTotal>
-                                <ButtonTotal onClick={finalizarPedido}>
+                                </IconButtonHeader>
+                                <IconButtonHeader onClick={finalizarPedido}>
                                     <FaCheck /> Confirmar Pedido
-                                </ButtonTotal>
+                                </IconButtonHeader>
                             </ModalActions>
                         </ModalContent>
                     </ModalOverlay>
                 )}
 
-                <OperatorInfo>Operador:</OperatorInfo>
+
+
+                <OperatorInfo>Usuario</OperatorInfo>
             </Container>
             {isListaPedidosOpen && (
                 <ModalOverlay>
@@ -465,13 +541,22 @@ const Pedidos = () => {
                                     <PedidoCard
                                         key={pedido.id}
                                         status={pedido.status}
-                                        onClick={() => openPedidoDetalhes(pedido)}
                                     >
                                         <p className="pedido-id">Pedido #{pedido.id}</p>
                                         <p><strong>Cliente:</strong> {pedido.cliente}</p>
                                         <p className="pedido-total"><strong>Total:</strong> R$ {pedido.total}</p>
                                         <p><strong>Taxa:</strong> R$ {pedido.taxa_entrega}</p>
                                         <p className="pedido-status">{pedido.status}</p>
+
+                                        {/* 🔹 Botões de Ações */}
+                                        <ModalButtons>
+                                            <IconButtonHeader onClick={() => openPedidoDetalhes(pedido)}>
+                                                ✏️ Editar
+                                            </IconButtonHeader>
+                                            <IconButtonHeader onClick={() => excluirPedido(pedido.id)}>
+                                                ❌ Excluir
+                                            </IconButtonHeader>
+                                        </ModalButtons>
                                     </PedidoCard>
                                 ))}
                             </ListaPedidosGrid>
@@ -482,68 +567,98 @@ const Pedidos = () => {
 
 
 
-{pedidoSelecionado && (
-    <ModalOverlay>
-        <ModalPedidoContent>
-            <CloseButton onClick={closePedidoDetalhes}>×</CloseButton>
-            <TitlePedido>✏️ Editar Pedido #{pedidoSelecionado.id}</TitlePedido>
 
-            {/* 🔹 Informações do Pedido */}
-            <PedidoInfo>
-                <p><strong>Cliente:</strong> {pedidoSelecionado.cliente}</p>
-                <p>
-                    <strong>Taxa de Entrega:</strong> 
-                    <InputTaxa
-                        type="number"
-                        value={pedidoSelecionado.taxa_entrega}
-                        onChange={(e) => setPedidoSelecionado({ ...pedidoSelecionado, taxa_entrega: e.target.value })}
-                    />
-                </p>
-            </PedidoInfo>
+            {pedidoSelecionado && (
+                <ModalOverlay>
+                    <ModalPedidoContent>
+                        <CloseButton onClick={closePedidoDetalhes}>×</CloseButton>
+                        <TitlePedido>✏️ Editar Pedido #{pedidoSelecionado.id}</TitlePedido>
 
-            {/* 🔹 Tabela de Itens do Pedido */}
-            <ScrollableTableContainer>
-                <ProductTableWrapper>
-                    <thead>
-                        <tr>
-                            <th>Produto</th>
-                            <th>Qtd</th>
-                            <th>Preço Total</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {pedidoSelecionado.itens.map((item) => (
-                            <tr key={item.produto_id}>
-                                <td>{item.produto_nome || item.nome || "Nome não encontrado"}</td>
-                                <td>{item.quantidade}</td>
-                                <td>R$ {(item.preco_unitario * item.quantidade).toFixed(2)}</td>
-                                <td>
-                                    <button onClick={() => editarQuantidade(item.produto_id, item.quantidade - 1)}>-</button>
-                                    <button onClick={() => editarQuantidade(item.produto_id, item.quantidade + 1)}>+</button>
-                                    <button onClick={() => removerItem(item.produto_id)}>🗑️</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </ProductTableWrapper>
-            </ScrollableTableContainer>
+                        {/* 🔹 Informações do Pedido */}
+                        <PedidoInfo>
+                            <p><strong>Cliente:</strong> {pedidoSelecionado.cliente}</p>
+                            <p>
+                                <strong>Taxa de Entrega:</strong>
+                                <InputTaxa
+                                    type="number"
+                                    value={pedidoSelecionado.taxa_entrega}
+                                    onChange={(e) => setPedidoSelecionado({
+                                        ...pedidoSelecionado,
+                                        taxa_entrega: parseFloat(e.target.value) || 0
+                                    })}
+                                />
+                            </p>
+                        </PedidoInfo>
 
-            {/* 🔹 Botões de Ação */}
-            <ModalButtons>
-                <StyledButton onClick={salvarAlteracoesPedido}>
-                    <FaCheck /> Salvar Alterações
-                </StyledButton>
-                <StyledButton onClick={closePedidoDetalhes}>
-                    <FaTimes /> Fechar
-                </StyledButton>
-                <StyledButton onClick={openAddProductModal}>
-                    <FaPlus /> Adicionar Produtos
-                </StyledButton>
-            </ModalButtons>
-        </ModalPedidoContent>
-    </ModalOverlay>
-)}
+                        {/* 🔹 Campo para Observação */}
+                        <ObservacaoContainer>
+                            <strong>Observação:</strong>
+                            <ObservacaoInput
+                                value={pedidoSelecionado.observacao || ""}
+                                onChange={(e) => setPedidoSelecionado({
+                                    ...pedidoSelecionado,
+                                    observacao: e.target.value
+                                })}
+                                placeholder="Digite uma observação para o pedido..."
+                            />
+                        </ObservacaoContainer>
+
+                        {/* 🔹 Tabela de Itens do Pedido */}
+                        <ScrollableTableContainer>
+                            <ProductTableWrapper>
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th>Qtd</th>
+                                        <th>Preço Total</th>
+                                        <th>➕</th>
+                                        <th>➖</th>
+                                        <th>❌</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pedidoSelecionado.itens.map((item) => (
+                                        <tr key={item.produto_id}>
+                                            <td>{item.produto_nome || item.nome || "Nome não encontrado"}</td>
+                                            <td>{item.quantidade}</td>
+                                            <td>R$ {(item.preco_unitario * item.quantidade).toFixed(2)}</td>
+                                            <td>
+                                                <IconButton onClick={() => editarQuantidade(item.produto_id, item.quantidade + 1)}>+</IconButton>
+                                            </td>
+                                            <td>
+                                                <IconButton onClick={() => editarQuantidade(item.produto_id, item.quantidade - 1)}>-</IconButton>
+                                            </td>
+                                            <td>
+                                                <IconButton onClick={() => removerItem(item.produto_id)}>🗑️</IconButton>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </ProductTableWrapper>
+                        </ScrollableTableContainer>
+
+                        {/* 🔹 Exibir Total do Pedido */}
+                        <TotalContainer>
+                            <TotalDisplay>
+                                <strong>Total do Pedido:</strong> R$ {pedidoSelecionado.itens.reduce((total, item) => total + (item.preco_unitario * item.quantidade), 0).toFixed(2)}
+                            </TotalDisplay>
+                        </TotalContainer>
+
+                        {/* 🔹 Botões de Ação */}
+                        <ModalButtons>
+                            <IconButtonHeader onClick={salvarAlteracoesPedido}>
+                                <FaCheck /> Salvar Alterações
+                            </IconButtonHeader>
+                            <IconButtonHeader onClick={closePedidoDetalhes}>
+                                <FaTimes /> Fechar
+                            </IconButtonHeader>
+                            <IconButtonHeader onClick={openAddProductModal}>
+                                <FaPlus /> Adicionar Produtos
+                            </IconButtonHeader>
+                        </ModalButtons>
+                    </ModalPedidoContent>
+                </ModalOverlay>
+            )}
 
 
             {isAddProductModalOpen && (
@@ -565,20 +680,20 @@ const Pedidos = () => {
 
                         {/* 🔹 Filtro por Categoria */}
                         <CategoryFilterContainer>
-                            <ButtonTotal
+                            <IconButtonHeader
                                 active={selectedModalCategory === ""}
                                 onClick={() => setSelectedModalCategory("")}
                             >
                                 Todas
-                            </ButtonTotal>
+                            </IconButtonHeader>
                             {categories.map((category) => (
-                                <ButtonTotal
+                                <IconButtonHeader
                                     key={category}
                                     active={selectedModalCategory === category}
                                     onClick={() => setSelectedModalCategory(category)}
                                 >
                                     {category}
-                                </ButtonTotal>
+                                </IconButtonHeader>
                             ))}
                         </CategoryFilterContainer>
 
@@ -591,7 +706,7 @@ const Pedidos = () => {
                                     )}
                                     <p>{product.nome}</p>
                                     <p><strong>R$ {product.preco_venda}</strong></p>
-                                    <SelectButtonModal onClick={() => adicionarProdutoAoPedido(product)}>Adicionar</SelectButtonModal>
+                                    <IconButtonHeader onClick={() => adicionarProdutoAoPedido(product)}>Adicionar</IconButtonHeader>
                                 </ModalProductCard>
                             ))}
                         </ProductsGrid>

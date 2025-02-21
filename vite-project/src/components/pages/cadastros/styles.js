@@ -1,4 +1,6 @@
 import styled from "styled-components";
+import { colors } from "../../../styles/colors";
+
 
 export const Container = styled.div`
   display: flex;
@@ -6,7 +8,7 @@ export const Container = styled.div`
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: linear-gradient(135deg, #102C57, #1E3A5F); /* 🔹 Fundo com gradiente */
+  background: linear-gradient(145deg, ${colors.primaryBlue}, ${colors.secondaryBlue});
   margin-left: 250px;
 `;
 

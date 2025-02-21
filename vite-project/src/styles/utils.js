@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { colors } from "./colors";
 
 
 export const LeftButton = styled.div`
@@ -7,7 +8,7 @@ export const LeftButton = styled.div`
   left: 15px;
   width: 40px;
   height: 40px;
-  background:rgb(158, 11, 11);
+  background: ${colors.primaryRed};
   border-radius: 16px;
   color: white;
   border: none;
@@ -19,19 +20,26 @@ export const LeftButton = styled.div`
   z-index: 1000;
 `;
 
-
 export const Container = styled.div`
   margin-left: 260px;
   margin-top: 48px;
   padding: 20px;
   min-height: 100vh;
-  color: #333333; /* Texto em cinza escuro */
+  color: ${colors.textDark};
 
   h1 {
     text-align: center;
     margin-bottom: 16px;
   }
 `;
+
+export const ContentWrapper = styled.div`
+  display: flex;
+  flex: 1; /* Ocupa todo o espaço disponível entre o Header e o OperatorInfo */
+  gap: 20px;
+  overflow: hidden; /* Impede que o conteúdo extrapole */
+`;
+
 
 export const SearchBar = styled.input`
   flex: 1; /* Faz o input ocupar o espaço restante */
@@ -50,37 +58,240 @@ export const SearchBar = styled.input`
 `;
 
 export const BackButton = styled.button`
-position: absolute;
-top: 15px;
-left: 15px;
-padding: 10px 14px;
-font-size: 18px;
-cursor: pointer;
-background: #0056b3;
-color: #ffffff;
-border: none;
-border-radius: 50px;
-transition: background 0.3s ease, transform 0.2s ease;
-box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  right: 12px;
+  background: linear-gradient(135deg, #ff5f5f, #d50000); /* 🔹 Gradiente para um efeito moderno */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease-in-out, opacity 0.3s ease-in-out, box-shadow 0.2s ease-in-out;
 
-&:hover {
-  background: #007bff;
-}
+  &:hover {
+    transform: scale(1.1); /* 🔹 Leve crescimento ao passar o mouse */
+    opacity: 0.9;
+    box-shadow: 0px 4px 10px rgba(255, 0, 0, 0.5);
+  }
 
-&:active {
-  background: #003d80;
-}
+  &:active {
+    transform: scale(0.95); /* 🔹 Animação ao clicar */
+  }
+`;
+
+export const RightSection = styled.div`
+  flex: 1;
+  background: linear-gradient(145deg, ${colors.primaryBlue}, ${colors.secondaryBlue});
+  border-radius: 32px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  height: 100%;
+  max-width: 35%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 `;
 
 
-export const Button = styled.button`
-  background-color: #0056b3;
-  color: #ffffff;
-  font-size: 0.8rem; /* Reduz tamanho da fonte */
-  font-weight: 600;
-  padding: 6px 12px; /* Reduz padding */
+export const LeftSection = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(145deg, ${colors.primaryBlue}, ${colors.secondaryBlue});
+  border-radius: 32px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  height: 100%;
+  color: white;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: auto;
+`;
+
+
+export const ReceiptContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  width: 500px; /* 🔹 Largura fixa para manter padrão */
+  height: 450px; /* 🔹 Altura fixa para garantir visual equilibrado */
+  overflow-y: auto;
+  border: 2px dashed rgba(0, 0, 0, 0.2); /* Estilo cupom */
+  position: relative;
+
+  /* Scroll suave para evitar rolagem abrupta */
+  &::-webkit-scrollbar {
+    width: 14px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 132, 0, 1);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+  }
+`;
+
+export const ReceiptItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    width: 60%;
+  }
+
+  .nome {
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #333;
+  }
+
+  .preco {
+    font-size: 0.8rem;
+    color: #777;
+  }
+
+  .quantidade {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .remover {
+    margin-left: 10px;
+  }
+`;
+
+export const FixedFooter = styled.div`
+  position: sticky;
+  bottom: 0;
+
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  width: 100%;
+`;
+
+export const OperatorInfo = styled.div`
+  position: relative;
+  width: 100%;
+  background: linear-gradient(145deg, #102c57, #0056b3);
+  color: #FFFFFF;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-top: 8px;
+  border-radius: 32px;
+`;
+
+export const TotalContainer = styled.div`
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 8px;
+`;
+
+// 🔹 Texto do Total
+export const TotalDisplay = styled.p`
+  font-size: 2.4rem;
+  font-weight: bold;
+`;
+
+
+export const HeaderContainer = styled.header`
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 🔹 Mantém os botões à direita */
+  padding: 15px 20px;
+  background: linear-gradient(145deg, #102c57, #0056b3);
+  color: white;
+  margin-bottom: 8px;
+  position: relative;
+  border-radius: 32px;
+`;
+
+
+export const Title = styled.h1`
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%); /* 🔹 Mantém o título centralizado */
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  width: max-content;
+`;
+
+export const ButtonContainer = styled.div`
+  display: flex;
+  gap: 10px; /* 🔹 Espaço entre os botões */
+  margin-left: auto; /* 🔹 Mantém os botões alinhados à direita */
+`;
+
+
+export const IconButtonHeader = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgb(255, 132, 0); /* Laranja Sofisticado */
   border: none;
-  border-radius: 6px; /* Bordas mais suaves */
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  transition: background 0.3s ease-in-out, box-shadow 0.2s ease-in-out, transform 0.2s;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3); /* Sombra mais discreta */
+  color: white;
+  letter-spacing: 0.8px;
+
+  &:hover {
+    background-color: #E65100; /* Laranja Escuro (Combina Melhor) */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.4); /* Destaque sutil */
+    transform: translateY(-1px); /* Elevação leve */
+  }
+
+  &:active {
+    transform: scale(0.97);
+    background-color: #BF360C; /* Laranja mais profundo para clique */
+  }
+
+  span {
+    display: inline;
+  }
+`;
+
+export const Button = styled.button`
+  background-color: ${colors.secondaryBlue};
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.1s ease, transform 0.2s ease;
   margin-bottom: 4px;
@@ -254,13 +465,13 @@ export const Label = styled.label`
 `;
 
 export const Notification = styled.div`
-  position: fixed;
+   position: fixed;
   top: 80px;
   right: 20px;
   background: ${({ type }) =>
     type === "success"
-      ? "linear-gradient(145deg, #4caf50, #81c784)" /* Gradiente verde */
-      : "linear-gradient(145deg, #ff6347, #ff867f)"}; /* Gradiente vermelho */
+      ? `linear-gradient(145deg, ${colors.successGreen}, ${colors.lightGreen})`
+      : `linear-gradient(145deg, ${colors.errorRed}, ${colors.lightRed})`};
   color: #ffffff;
   padding: 15px 25px;
   border-radius: 10px;
@@ -269,8 +480,8 @@ export const Notification = styled.div`
   font-weight: bold;
   z-index: 999999;
   display: flex;
-  align-items: center; /* Alinha o ícone e o texto */
-  gap: 10px; /* Espaçamento entre ícone e texto */
+  align-items: center;
+  gap: 10px;
   animation: fadeIn 0.4s ease, fadeOut 0.4s ease 3s;
 
   @keyframes fadeIn {

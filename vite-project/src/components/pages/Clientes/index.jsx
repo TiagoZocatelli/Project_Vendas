@@ -10,7 +10,9 @@ import {
   SearchBar,
   Notification,
   Select,
-  ActionIcon
+  ActionIcon,
+  ConfirmButton,
+  ConfirmCancelButton
 } from "../../../styles/utils";
 import {
   ModalOverlay,
@@ -330,10 +332,10 @@ const Clientes = () => {
               </FormContainer>
             </form>
             <ModalActions>
-              <Button onClick={addOrUpdateClient}>
+              <ConfirmButton onClick={addOrUpdateClient}>
                 {editingIndex !== null ? "Atualizar" : "Adicionar"}
-              </Button>
-              <Button onClick={closeModal}>Cancelar</Button>
+              </ConfirmButton>
+              <ConfirmCancelButton onClick={closeModal}>Cancelar</ConfirmCancelButton>
             </ModalActions>
           </ModalContent>
         </ModalOverlay>

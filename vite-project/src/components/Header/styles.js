@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { colors } from "../../styles/colors";
 
 export const AsideContainer = styled.aside`
   position: fixed;
@@ -6,7 +7,7 @@ export const AsideContainer = styled.aside`
   left: ${(props) => (props.$isOpen ? "0" : "-260px")};
   width: 260px;
   height: 100vh;
-  background: linear-gradient(145deg, #102c57, #0056b3); /* Gradiente suave */
+  background: linear-gradient(145deg, ${colors.primaryBlue}, ${colors.secondaryBlue});
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -36,29 +37,28 @@ export const BigButton = styled.button`
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 120px; /* Largura maior para destaque */
-  height: 120px; /* Altura maior */
-  background: ${(props) => props.bgColor || "#0056b3"}; /* Cor de fundo dinâmica */
-  color: ${(props) => props.color || "#ffffff"}; /* Cor do texto dinâmica */
+  width: 120px;
+  height: 120px;
+  background: ${(props) => props.bgColor || colors.secondaryBlue};
+  color: ${(props) => props.color || colors.white};
   border: none;
-  border-radius: 12px; /* Bordas arredondadas */
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 1.1rem; /* Texto maior */
+  font-size: 1.1rem;
   font-weight: bold;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Sombra para destaque */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease, background 0.3s ease;
 
   &:hover {
-    transform: scale(1.05); /* Leve aumento no hover */
-    background: ${(props) => props.hoverColor || "#003d80"}; /* Cor no hover */
+    transform: scale(1.05);
+    background: ${(props) => props.hoverColor || colors.darkBlue};
   }
 
   svg {
-    font-size: 2rem; /* Ícone maior */
-    margin-bottom: 8px; /* Espaço entre ícone e texto */
+    font-size: 2rem;
+    margin-bottom: 8px;
   }
 `;
-
 
 export const AsideItem = styled.li`
   display: flex;
@@ -100,7 +100,6 @@ export const AsideItem = styled.li`
     white-space: nowrap; /* Evita quebra de linha */
   }
 `;
-
 
 export const DropdownMenu = styled.div`
   position: absolute;

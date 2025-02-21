@@ -40,7 +40,6 @@ const Header = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Usuário"); // 🔹 Pega nome do usuário
 
-
   const navigate = useNavigate();
 
   const handleVendasClick = () => {
@@ -61,7 +60,6 @@ const Header = () => {
     return () => clearInterval(interval);
   }, []);
 
-
   const confirmLogout = () => {
     localStorage.removeItem("tokenUsers");
     localStorage.removeItem("tokenPdv");
@@ -78,6 +76,12 @@ const Header = () => {
             <Link to="/vendas">
               <FaChartLine />
               PDV
+            </Link>
+          </AsideItem>
+          <AsideItem $bgColor="#3F51B5" $hoverColor="#303F9F"> {/* Novo botão de Pedidos */}
+            <Link to="/pedidos">
+              <FaTruck />
+              Pedidos
             </Link>
           </AsideItem>
           <AsideItem $bgColor="#FF9800" $hoverColor="#F57C00">
