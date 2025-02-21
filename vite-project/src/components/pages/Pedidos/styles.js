@@ -330,40 +330,6 @@ export const TaxaContainer = styled.div`
   width: 100%;
 `;
 
-export const ModalPedidosContent = styled.div`
-  background: white;
-  width: 90vw; /* 🔹 Ocupa 70% da largura da tela */
-  max-width: 1500px; /* 🔹 Define um limite máximo */
-  height: 90vh; /* 🔹 Altura ajustada */
-  max-height: 700px; /* 🔹 Evita que fique muito grande */
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 32px; /* 🔹 Deixa o modal mais bonito */
-  position: relative;
-`;
-
-
-export const ListaPedidosScrollable = styled.div`
-  flex-grow: 1;
-  overflow-y: auto; /* 🔹 Ativa a rolagem apenas na lista */
-  padding: 10px; /* 🔹 Impede que o modal fique muito alto */
-
-    /* Scroll suave para evitar rolagem abrupta */
-    &::-webkit-scrollbar {
-    width: 14px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 132, 0, 1);
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-  }
-`;
-
 export const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -465,82 +431,6 @@ export const DescontTaxaInput = styled(TaxaInput)`
   width: 30%;
 `;
 
-export const TitlePedidos = styled.h2`
-  font-size: 1.8rem;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 15px; /* 🔹 Espaço abaixo do título */
-  padding: 10px;
-  border-bottom: 2px solid #000; /* 🔹 Linha de separação */
-`;
-
-
-export const ListaPedidosGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* 🔹 Mantemos espaçamento uniforme */
-  gap: 16px; /* 🔹 Aumentamos o espaçamento entre os cartões */
-  width: 100%;
-  max-height: 800px;
-  padding: 15px;
-  justify-content: center; /* 🔹 Garante que os cartões fiquem centralizados */
-`;
-
-
-export const PedidoCard = styled.div`
-  background: #fff;
-  border: 2px solid #102C57;
-  padding: 20px;
-  border-radius: 32px;
-  text-align: center;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
-  min-height: 100px; /* 🔹 Mantém um tamanho uniforme */
-  width: 300px; /* 🔹 Aumentamos a largura */
-  gap: 8px; /* 🔹 Melhor espaçamento interno */
-
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: 0px 6px 18px rgba(0, 0, 0, 0.25); /* 🔹 Melhor efeito de destaque */
-    background: #f8f8f8; /* 🔹 Fundo claro no hover ao invés do azul */
-  }
-
-  p {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #333;
-    margin: 6px 0;
-  }
-
-  .pedido-id {
-    font-size: 1.1rem;
-    color: #102C57;
-  }
-
-  .pedido-total {
-    font-size: 1.2rem;
-    color: #FF4500; /* 🔹 Cor chamativa para o total */
-  }
-
-  .pedido-status {
-    font-size: 0.85rem;
-    color: white;
-    background: ${({ status }) =>
-    status === "Pendente" ? "#FFA500" :
-      status === "Finalizado" ? "#28A745" :
-        "#DC3545"};
-    padding: 6px 12px;
-    border-radius: 10px;
-    margin-top: 8px;
-    width: 100px;
-    text-align: center;
-  }
-`;
-
 export const ModalProductCard = styled(ProductCard)`
     height: 240px;
     
@@ -598,13 +488,6 @@ export const InputTaxa = styled.input`
   border-radius: 6px;
   text-align: center;
   margin-left: 10px;
-`;
-
-export const ModalButtons = styled.div`
-  display: flex;
-  justify-content: space-between;
-  padding-top: 15px;
-  gap: 10px;
 `;
 
 export const StyledButton = styled(ButtonTotal)`

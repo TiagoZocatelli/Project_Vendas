@@ -417,7 +417,6 @@ def cancelar_oferta(id):
 # 🚀 CRUD de Pedidos
 # ------------------------------
 
-
 @app.route("/pedidos_pendentes", methods=["GET"])
 def listar_pedidos_pendentes():
     """Retorna a lista de pedidos ordenados pela data mais recente, incluindo os itens"""
@@ -725,6 +724,16 @@ def criar_venda():
             """, (pedido_id, operador_id, cliente, filial_id, total_venda, troco_total))
             venda_id = cur.fetchone()[0]
             print(f"✔️ Venda ID {venda_id} registrada!")
+
+            # ✅ Se houver um pedido importado, marcar como finalizado
+            if pedido_id:
+                print(f"\n📌 Marcando Pedido {pedido_id} como Finalizado...")
+                cur.execute("""
+                    UPDATE pedidos
+                    SET status = 'F'
+                    WHERE id = %s
+                """, (pedido_id,))
+                print(f"✔️ Pedido {pedido_id} finalizado!")
 
             erros_estoque = []
 

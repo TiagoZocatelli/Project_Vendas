@@ -4,18 +4,12 @@ import {
     IconButton, Container, SectionTitle, ScrollableTableContainer, SearchContainer,
     SearchInput, CategoryContainer, ProductsGrid, ProductCard, ModalOverlay, ModalContent,
     CloseButton, ModalActions, ObservacaoInput, TaxaInput, ProductTableWrapper,
-    ListaPedidosGrid,
-    PedidoCard,
     ModalProductCard,
     SearchInputModal,
     CategoryFilterContainer,
-    ModalPedidosContent,
-    ListaPedidosScrollable,
-    TitlePedidos,
     ModalPedidoContent,
     TitlePedido,
     PedidoInfo,
-    ModalButtons,
     InputTaxa,
     ObservacaoContainer,
 } from "./styles";
@@ -32,8 +26,15 @@ import {
     FixedFooter,
     TotalContainer,
     TotalDisplay,
+    ModalButtons,
     OperatorInfo,
-    ReceiptItem
+    ModalPedidosContent,
+    ListaPedidosScrollable,
+    TitlePedidos,
+    ListaPedidosGrid,
+    PedidoCard,
+    ReceiptItem,
+    InputGroup
 } from '../../../styles/utils'
 
 import api from "../../../api";
@@ -43,6 +44,7 @@ const Pedidos = () => {
     const [categories, setCategories] = useState([]);
     const [pedidos, setPedidos] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [searchTermPedidos, setSearchTermPedidos] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
     const [pedido, setPedido] = useState([]);
     const [observacao, setObservacao] = useState("");
@@ -59,6 +61,11 @@ const Pedidos = () => {
     const [mensagemSucesso, setMensagemSucesso] = useState(""); // 🔹 Estado para mensagem de sucesso
     const [subtotal, setSubtotal] = useState(0);
     const [totalPedido, setTotalPedido] = useState(0);
+
+    const filteredPedidos = pedidos.filter((pedido) =>
+        pedido.id.toString().includes(searchTermPedidos) ||
+        (pedido.cliente && pedido.cliente.toLowerCase().includes(searchTermPedidos.toLowerCase()))
+    );
 
 
     const openAddProductModal = () => setIsAddProductModalOpen(true);
@@ -85,7 +92,7 @@ const Pedidos = () => {
             })
             .catch((error) => console.error("Erro ao carregar produtos:", error));
     };
-    
+
     const carregarPedidos = () => {
         api.get("/pedidos_pendentes")
             .then((res) => setPedidos(res.data))
@@ -117,14 +124,14 @@ const Pedidos = () => {
 
     const excluirPedido = async (id) => {
         if (!window.confirm("Tem certeza que deseja excluir este pedido?")) return;
-    
+
         try {
             await api.delete(`/pedidos/${id}`);
             alert("Pedido excluído com sucesso!");
-    
+
             // Remove o pedido da lista sem precisar recarregar a página
             setPedidos((prevPedidos) => prevPedidos.filter(p => p.id !== id));
-    
+
         } catch (error) {
             console.error("Erro ao excluir pedido:", error);
             alert("Erro ao excluir pedido!");
@@ -246,7 +253,7 @@ const Pedidos = () => {
 
     const salvarAlteracoesPedido = async () => {
         if (!pedidoSelecionado) return;
-    
+
         const pedidoAtualizado = {
             cliente: pedidoSelecionado.cliente,
             total: Number(
@@ -263,10 +270,10 @@ const Pedidos = () => {
                 preco_unitario: Number(item.preco_unitario),
             })),
         };
-    
+
         try {
             const response = await api.put(`/pedidos/${pedidoSelecionado.id}`, pedidoAtualizado);
-            
+
             if (response.status === 200) {
                 alert("Pedido atualizado com sucesso!");
                 carregarPedidos();
@@ -278,13 +285,13 @@ const Pedidos = () => {
             alert("Erro ao conectar com a API");
             console.error("Erro ao atualizar pedido:", error);
         }
-    };    
+    };
 
     const finalizarPedido = async () => {
         if (isSubmitting) return;
-    
+
         setIsSubmitting(true);
-    
+
         const pedidoData = {
             cliente: ClienteNome, // Pode ser modificado para pegar do usuário
             total: totalPedido,
@@ -297,12 +304,12 @@ const Pedidos = () => {
                 total: item.preco_venda * item.quantity
             }))
         };
-    
+
         try {
             const response = await api.post("/pedidos", pedidoData);
-    
+
             console.log("Resposta da API:", response); // 🔹 Log da resposta completa
-    
+
             if (response.status >= 200 && response.status < 300) {
                 alert(`Pedido criado com sucesso! ID: ${response.data?.id || "ID não disponível"}`);
                 setPedido([]);
@@ -315,10 +322,9 @@ const Pedidos = () => {
             }
         } catch (error) {
             console.error("Erro ao conectar com a API:", error.response || error); // 🔹 Log do erro detalhado
-    
+
             alert(
-                `Erro ao conectar com a API: ${
-                    error.response?.data?.error || error.message || "Erro desconhecido"
+                `Erro ao conectar com a API: ${error.response?.data?.error || error.message || "Erro desconhecido"
                 }`
             );
         } finally {
@@ -532,38 +538,49 @@ const Pedidos = () => {
                 <ModalOverlay>
                     <ModalPedidosContent>
                         <CloseButton onClick={closeListaPedidos}>×</CloseButton>
-                        <TitlePedidos>📋 Lista de Pedidos</TitlePedidos> {/* 🔹 Título Estilizado */}
+                        <TitlePedidos>📋 Lista de Pedidos</TitlePedidos>
 
-                        {/* 🔹 Agora a lista tem scroll interno */}
-                        <ListaPedidosScrollable>
-                            <ListaPedidosGrid>
-                                {pedidos.map((pedido) => (
-                                    <PedidoCard
-                                        key={pedido.id}
-                                        status={pedido.status}
-                                    >
-                                        <p className="pedido-id">Pedido #{pedido.id}</p>
-                                        <p><strong>Cliente:</strong> {pedido.cliente}</p>
-                                        <p className="pedido-total"><strong>Total:</strong> R$ {pedido.total}</p>
-                                        <p><strong>Taxa:</strong> R$ {pedido.taxa_entrega}</p>
-                                        <p className="pedido-status">{pedido.status}</p>
+                        {/* 🔹 Campo de Pesquisa */}
+                        <InputGroup>
+                            <input
+                                type="text"
+                                placeholder="🔎 Buscar por ID ou Cliente..."
+                                value={searchTermPedidos}
+                                onChange={(e) => setSearchTermPedidos(e.target.value)}
+                            />
+                        </InputGroup>
 
-                                        {/* 🔹 Botões de Ações */}
-                                        <ModalButtons>
-                                            <IconButtonHeader onClick={() => openPedidoDetalhes(pedido)}>
-                                                ✏️ Editar
-                                            </IconButtonHeader>
-                                            <IconButtonHeader onClick={() => excluirPedido(pedido.id)}>
-                                                ❌ Excluir
-                                            </IconButtonHeader>
-                                        </ModalButtons>
-                                    </PedidoCard>
-                                ))}
-                            </ListaPedidosGrid>
-                        </ListaPedidosScrollable>
+                        {filteredPedidos.length === 0 ? (
+                            <p>Nenhum pedido encontrado.</p>
+                        ) : (
+                            <ListaPedidosScrollable>
+                                <ListaPedidosGrid>
+                                    {filteredPedidos.map((pedido) => (
+                                        <PedidoCard key={pedido.id} status={pedido.status}>
+                                            <p className="pedido-id">Pedido #{pedido.id}</p>
+                                            <p><strong>Cliente:</strong> {pedido.cliente || "Não identificado"}</p>
+                                            <p className="pedido-total"><strong>Total:</strong> R$ {pedido.total || "0.00"}</p>
+                                            <p><strong>Taxa:</strong> R$ {pedido.taxa_entrega || "0.00"}</p>
+                                            <p className="pedido-status"><strong>Status:</strong> {pedido.status === "P" ? "Pendente" : "Finalizado"}</p>
+
+                                            {/* 🔹 Botões de Ação */}
+                                            <ModalButtons>
+                                                <IconButtonHeader onClick={() => openPedidoDetalhes(pedido)}>
+                                                    ✏️ Editar
+                                                </IconButtonHeader>
+                                                <IconButtonHeader onClick={() => excluirPedido(pedido.id)}>
+                                                    ❌ Excluir
+                                                </IconButtonHeader>
+                                            </ModalButtons>
+                                        </PedidoCard>
+                                    ))}
+                                </ListaPedidosGrid>
+                            </ListaPedidosScrollable>
+                        )}
                     </ModalPedidosContent>
                 </ModalOverlay>
             )}
+
 
 
 

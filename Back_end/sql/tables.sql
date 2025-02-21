@@ -172,11 +172,12 @@ CREATE TABLE ofertas (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabela de Pedidos (importação de pedidos)
+-- Tabela de Pedidos
 CREATE TABLE pedidos (
     id SERIAL PRIMARY KEY,
     cliente VARCHAR(100), -- Pode ser NULL para clientes não identificados
-    data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_pedido DATE DEFAULT CURRENT_DATE, -- Apenas a data do pedido
+    hora_pedido TIME DEFAULT CURRENT_TIME, -- Apenas a hora do pedido
     status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'F')), -- "P" = Pendente, "F" = Finalizado
     total DECIMAL(10,2) DEFAULT 0.00,
     taxa_entrega DECIMAL(10,2) DEFAULT 0.00, -- Taxa de entrega separada
@@ -184,6 +185,7 @@ CREATE TABLE pedidos (
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabela de Itens do Pedido
 CREATE TABLE pedido_itens (
     id SERIAL PRIMARY KEY,
     pedido_id INT REFERENCES pedidos(id) ON DELETE CASCADE,
@@ -192,6 +194,8 @@ CREATE TABLE pedido_itens (
     preco_unitario DECIMAL(10,2) NOT NULL,
     desconto DECIMAL(10,2) DEFAULT 0.00, -- Desconto por item
     total DECIMAL(10,2) NOT NULL, -- Total por item considerando desconto
+    data_item DATE DEFAULT CURRENT_DATE, -- Data do item no pedido
+    hora_item TIME DEFAULT CURRENT_TIME, -- Hora do item no pedido
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

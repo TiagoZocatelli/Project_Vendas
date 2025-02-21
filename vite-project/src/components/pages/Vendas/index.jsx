@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Container,
   HighlightedProduct,
-  InputGroup,
   Button,
   ProductModal,
   ProductModalContent,
@@ -12,9 +11,7 @@ import {
   ModalOverlay,
   SettingsModal,
   SettingsIcon,
-  SettingsLabel,
   SettingsSelect,
-  SettingsCheckbox,
   SettingsButton,
   Notification,
   PaymentModalContainer,
@@ -42,13 +39,13 @@ import {
   FaCog,
   FaCheckCircle,
   FaExclamationCircle,
-  FaPrint
+  FaPrint,
+  FaDownload
 } from "react-icons/fa";
 
 import {
   CategorySection,
   ProductGrid,
-  CloseButton,
   DivDesc
 } from "./styles";
 
@@ -62,6 +59,7 @@ import {
   ConfirmButtonContainer,
   RightSection,
   LeftSection,
+  InputGroup,
   ContentWrapper,
   ReceiptContainer,
   FixedFooter,
@@ -69,7 +67,14 @@ import {
   TotalDisplay,
   OperatorInfo,
   ReceiptItem,
-  BackButton
+  CloseButton,
+  IconButtonHeader,
+  ModalPedidosContent,
+  ListaPedidosScrollable,
+  TitlePedidos,
+  ListaPedidosGrid,
+  PedidoCard,
+  ModalButtons
 } from '../../../styles/utils';
 
 
@@ -130,6 +135,54 @@ const PDV = () => {
   // Estado para abrir o modal de confirmação
   const [isConfirmPrintModalOpen, setIsConfirmPrintModalOpen] = useState(false);
   const [shouldPrint, setShouldPrint] = useState(false);
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
+  const [importedOrderId, setImportedOrderId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredOrders = pendingOrders.filter((pedido) =>
+    pedido.id.toString().includes(searchTerm) ||
+    (pedido.cliente && pedido.cliente.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  useEffect(() => {
+    if (isOrderModalOpen) {
+      api.get("/pedidos_pendentes")
+        .then((res) => setPendingOrders(res.data)) // ✅ Usa res.data diretamente
+        .catch((error) => console.error("Erro ao buscar pedidos:", error));
+    }
+  }, [isOrderModalOpen]);
+
+
+  const importOrder = (pedido) => {
+    if (!pedido || !pedido.itens || pedido.itens.length === 0) {
+      showMessage("O pedido não contém itens válidos.", "error");
+      return;
+    }
+
+    const updatedCart = pedido.itens.map((item) => ({
+      id: item.produto_id,
+      nome: item.produto_nome,
+      quantidade: Number(item.quantidade),
+      preco_venda: parseFloat(item.preco_unitario),
+      total: Number(item.quantidade) * parseFloat(item.preco_unitario),
+    }));
+
+    setCart(updatedCart);
+    setTotalGeneral(updatedCart.reduce((sum, item) => sum + item.total, 0));
+    setRemainingTotal(updatedCart.reduce((sum, item) => sum + item.total, 0) - totalPaid);
+
+    setHighlightedProduct(updatedCart[0] || { nome: "Nenhum produto selecionado" });
+
+    setImportedOrderId(pedido.id); // Salva o ID do pedido importado
+
+    setIsOrderModalOpen(false);
+  };
+
+  useEffect(() => {
+    setRemainingTotal(totalGeneral - totalPaid);
+  }, [totalGeneral, totalPaid]);
+
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -245,8 +298,6 @@ const PDV = () => {
     setIsTotalDiscountModalOpen(false);
   };
 
-
-
   const toggleSelectItem = (id) => {
     if (selectedItems.includes(id)) {
       setSelectedItems(selectedItems.filter((item) => item !== id));
@@ -319,8 +370,6 @@ const PDV = () => {
     setPaymentMethod(""); // Reseta o método de pagamento
   };
 
-
-
   const openPaymentModal = () => {
     if (cart.length === 0) {
       showMessage("Adicione itens ao carrinho antes de totalizar a compra", "error");
@@ -389,35 +438,34 @@ const PDV = () => {
       const saleData = {
         operador_id: operatorNumber,
         filial_id: operadorFilial,
-        pedido: null,
+        pedido: importedOrderId || null, // Envia o ID do pedido, caso tenha sido importado
         cliente: "Cliente Padrão",
         itens: cart.map((item) => ({
           produto_id: item.id,
-          quantidade: item.quantity,
-          preco_unitario: item.preco_venda,
-          desconto: item.discountApplied || 0,
+          quantidade: Number(item.quantidade),
+          preco_unitario: parseFloat(item.preco_venda),
+          desconto: parseFloat(item.discountApplied || 0),
         })),
         pagamentos: paymentHistory.map((p, index) => {
           const paymentMethod = paymentMethods.find((pm) => pm.nome === p.method);
-          const isLastPayment = index === paymentHistory.length - 1; // Verifica se é o último pagamento
+          const isLastPayment = index === paymentHistory.length - 1;
 
           return {
             forma_pagamento_id: paymentMethod ? paymentMethod.id : null,
-            valor_pago: p.amount,
-            troco: isLastPayment ? p.change : 0, // ✅ Troco só para o último pagamento
+            valor_pago: parseFloat(p.amount),
+            troco: isLastPayment ? parseFloat(p.change) : 0,
           };
         }),
         imprimir_cupom: shouldPrint,
       };
 
-      console.log("📌 Dados enviados para API:", saleData); // 🔹 Debug
+      console.log("📌 Dados enviados para API:", saleData);
 
       const response = await api.post("/vendas", saleData);
 
       if (response.status === 201) {
         showMessage("Venda finalizada e registrada com sucesso!", "success");
 
-        // ✅ Se o usuário escolheu imprimir, faz o download do PDF
         if (shouldPrint) {
           const pdfBase64 = response.data.cupom_fiscal_pdf;
           if (pdfBase64) {
@@ -434,8 +482,6 @@ const PDV = () => {
       showMessage(`Erro ao enviar venda: ${error.message}`, "error");
     }
   };
-
-
 
   const fetchSalesForPrinting = async () => {
     if (!startDate || !endDate) {
@@ -712,6 +758,10 @@ const PDV = () => {
               <IconButton title="Reimprimir Cupom" onClick={openReprintModal}>
                 <FaPrint />
               </IconButton>
+              <IconButton title="Importar Pedido" onClick={() => setIsOrderModalOpen(true)}>
+                <FaDownload />
+              </IconButton>
+
             </IconButtonGroup>
           </LeftSection>
 
@@ -1273,6 +1323,50 @@ const PDV = () => {
             </ConfirmModalContent>
           </ConfirmModalContainer>
         )}
+        {isOrderModalOpen && (
+          <ModalOverlay onClose={() => setIsOrderModalOpen(false)}>
+            <ModalPedidosContent>
+              <CloseButton onClick={() => setIsOrderModalOpen(false)}>×</CloseButton>
+              <TitlePedidos>📋 Pedidos Pendentes</TitlePedidos>
+
+              {/* 🔹 Campo de Pesquisa */}
+              <InputGroup>
+                <input
+                  type="text"
+                  placeholder="🔎 Buscar por ID ou Cliente..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+
+              {filteredOrders.length === 0 ? (
+                <p>Nenhum pedido encontrado.</p>
+              ) : (
+                <ListaPedidosScrollable>
+                  <ListaPedidosGrid>
+                    {filteredOrders.map((pedido) => (
+                      <PedidoCard key={pedido.id} status={pedido.status}>
+                        <p className="pedido-id">Pedido #{pedido.id}</p>
+                        <p><strong>Cliente:</strong> {pedido.cliente || "Não identificado"}</p>
+                        <p className="pedido-total"><strong>Total:</strong> R$ {pedido.total || "0.00"}</p>
+                        <p><strong>Taxa de Entrega:</strong> R$ {pedido.taxa_entrega || "0.00"}</p>
+                        <p className="pedido-status"><strong>Status:</strong> {pedido.status === "P" ? "Pendente" : "Finalizado"}</p>
+
+                        {/* 🔹 Botão de Importação */}
+                        <ModalButtons>
+                          <IconButtonHeader onClick={() => importOrder(pedido)}>
+                            ✅ Importar Pedido
+                          </IconButtonHeader>
+                        </ModalButtons>
+                      </PedidoCard>
+                    ))}
+                  </ListaPedidosGrid>
+                </ListaPedidosScrollable>
+              )}
+            </ModalPedidosContent>
+          </ModalOverlay>
+        )}
+
 
       </Container>
     </>

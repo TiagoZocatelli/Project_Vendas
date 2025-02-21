@@ -18,7 +18,7 @@ export const ButtonGroup = styled.div`
 
 
 export const IconButton = styled.button`
-  background: none;
+  background: rgba(255, 132, 0, 1);
   border: none;
   color: white;
   cursor: pointer;
@@ -31,12 +31,9 @@ export const IconButton = styled.button`
   transition: all 0.3s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #E65100;
   }
 `;
-
-
-
 
 export const ProductDisplay = styled.div`
   background: linear-gradient(
@@ -194,36 +191,6 @@ export const ProductImage = styled.img`
   object-fit: cover;
   border-radius: 5px;
   border: 3px solid white;
-`;
-
-export const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-
-  label {
-    font-size: 1rem;
-    font-weight: bold;
-    color: white;
-    margin-bottom: 3px;
-  }
-
-  input {
-    width: 100%;
-    padding: 10px;
-    font-size: 1rem;
-    border: 2px solid #ffffff;
-    border-radius: 5px;
-    background-color: white;
-    color: black;
-    text-align: center;
-
-    &:focus {
-      border-color: #000;
-      outline: none;
-    }
-  }
 `;
 
 export const IconButtonGroup = styled.div`
@@ -549,19 +516,18 @@ export const ProductModal = styled(PaymentModal)`
   bottom: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: center; /* Centraliza verticalmente */
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 9999;
-  align-items: flex-start;
 `;
 
 export const ProductModalContent = styled.div`
   background-color: #ffffff;
-  border-radius: 12px;
+  border-radius: 32px;
   padding: 20px;
   width: 90%;
-  max-width: 1200px;
-  max-height: 80vh;
+  max-width: 1500px;
+  max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 
@@ -683,7 +649,7 @@ export const SettingsIcon = styled.div`
   right: 60px;
   cursor: pointer;
   font-size: 2rem;
-  color: #FFD700; /* Dourado para destacar */
+  color: rgba(255, 132, 0, 1); /* Dourado para destacar */
   transition: transform 0.2s ease-in-out;
 
   &:hover {
@@ -777,7 +743,7 @@ export const SettingsCheckbox = styled.input`
 export const SettingsButton = styled.button`
   margin-top: 20px;
   padding: 12px;
-  background: #FFD700; /* Dourado vibrante */
+  background: rgba(255, 132, 0, 1); /* Dourado vibrante */
   color: black;
   border: none;
   border-radius: 8px;
@@ -788,7 +754,8 @@ export const SettingsButton = styled.button`
   transition: background 0.3s ease-in-out;
 
   &:hover {
-    background: #E6C300;
+    background-color: #E65100; /* Laranja Escuro (Combina Melhor) */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.4); /* Destaque sutil */
   }
 `;
 export const DivDesc = styled.div`
