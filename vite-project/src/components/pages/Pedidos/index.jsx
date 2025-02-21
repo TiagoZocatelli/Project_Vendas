@@ -76,13 +76,13 @@ const Pedidos = () => {
 
     const [isQuantityModalOpenEdit, setIsQuantityModalOpenEdit] = useState(false);
     const [selectedProductEdit, setSelectedProductEdit] = useState(null);
-    const [quantityEdit, setQuantityEdit] = useState(1);
+    const [quantityEdit, setQuantityEdit] = useState();
 
 
     const openQuantityModalEdit = (product) => {
         setSelectedProductEdit(product);
-        setQuantityEdit(0); // Sempre começa com 1
         setIsQuantityModalOpenEdit(true);
+        setQuantityEdit(0)
     };
 
     // 🔹 Confirma a quantidade e adiciona ao pedido
@@ -313,6 +313,14 @@ const Pedidos = () => {
     };
 
     const adicionarProdutoAoPedido = (produto, quantidade) => {
+        const quantidadeFloat = parseFloat(quantidade);
+
+        // 🔹 Validação: Impede que um produto seja adicionado com quantidade menor que 0.1
+        if (!quantidade || isNaN(quantidadeFloat) || quantidadeFloat < 0.1) {
+            alert("Erro: A quantidade mínima permitida para um item é 0.1.");
+            return;
+        }
+
         setPedidoSelecionado((prevPedido) => {
             const produtoExistente = prevPedido.itens.find((item) => item.produto_id === produto.id);
 
@@ -324,7 +332,7 @@ const Pedidos = () => {
                         item.produto_id === produto.id
                             ? {
                                 ...item,
-                                quantidade: parseFloat(item.quantidade) + parseFloat(quantidade) // ✅ Garante valores decimais corretos
+                                quantidade: parseFloat(item.quantidade) + quantidadeFloat, // ✅ Garante valores decimais corretos
                             }
                             : item
                     ),
@@ -337,7 +345,7 @@ const Pedidos = () => {
                         {
                             produto_id: produto.id,
                             produto_nome: produto.nome,
-                            quantidade: parseFloat(quantidade), // ✅ Permite valores decimais
+                            quantidade: quantidadeFloat, // ✅ Permite valores decimais
                             preco_unitario: parseFloat(produto.preco_venda), // ✅ Garante conversão correta
                         },
                     ],
@@ -352,9 +360,10 @@ const Pedidos = () => {
     };
 
 
+
     const salvarAlteracoesPedido = async () => {
         if (!pedidoSelecionado) return;
-    
+
         const pedidoAtualizado = {
             filial_id: filialSelecionada, // ✅ Garante que a filial seja enviada
             cliente: pedidoSelecionado.cliente,
@@ -373,10 +382,10 @@ const Pedidos = () => {
                 filial_id: filialSelecionada, // ✅ Agora, cada item tem a filial associada
             })),
         };
-    
+
         try {
             const response = await api.put(`/pedidos/${pedidoSelecionado.id}`, pedidoAtualizado);
-    
+
             if (response.status === 200) {
                 alert("Pedido atualizado com sucesso!");
                 carregarPedidos();
@@ -389,7 +398,7 @@ const Pedidos = () => {
             console.error("Erro ao atualizar pedido:", error);
         }
     };
-    
+
 
     const finalizarPedido = async () => {
         if (isSubmitting) return;
