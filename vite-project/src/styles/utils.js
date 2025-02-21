@@ -328,12 +328,15 @@ export const PedidoCard = styled.div`
     font-size: 0.8rem;
     font-weight: bold;
     color: #333;
-    margin: 6px 0;
   }
 
   .pedido-id {
     font-size: 1.1rem;
     color: #102C57;
+  }
+
+  .pedido-info {
+    font-size: 1rem;
   }
 
   .pedido-total {
@@ -350,7 +353,6 @@ export const PedidoCard = styled.div`
         "#DC3545"};
     padding: 6px 12px;
     border-radius: 10px;
-    margin-top: 8px;
     width: 100px;
     text-align: center;
   }

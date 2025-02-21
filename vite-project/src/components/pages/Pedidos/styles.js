@@ -360,7 +360,6 @@ export const ModalContent = styled.div`
 `;
 
 export const CloseButton = styled.button`
-  position: absolute;
   right: 12px;
   background: linear-gradient(135deg, #ff5f5f, #d50000); /* 🔹 Gradiente para um efeito moderno */
   border-radius: 50%;
@@ -442,8 +441,8 @@ export const ModalProductCard = styled(ProductCard)`
 export const ModalPedidoContent = styled.div`
   background: white;
   width: 80vw; /* 🔹 Usa 80% da largura da tela */
-  max-width: 900px; /* 🔹 Mantém um tamanho máximo */
-  height: 80vh;
+  max-width: 1000px; /* 🔹 Mantém um tamanho máximo */
+  height: 90vh;
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -470,14 +469,9 @@ export const PedidoInfo = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 8px;
   font-size: 1rem;
   font-weight: bold;
-  color: white;
-
-  p {
-    margin: 5px 0;
-  }
 `;
 
 export const InputTaxa = styled.input`
@@ -488,6 +482,92 @@ export const InputTaxa = styled.input`
   border-radius: 6px;
   text-align: center;
   margin-left: 10px;
+`;
+
+export const FilialSelectContainer = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+`;
+
+export const FilialSelect = styled.select`
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+
+    &:focus {
+        border-color: #007bff;
+        outline: none;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
+
+    &:hover {
+        border-color: #0056b3;
+    }
+`;
+
+
+// 🔹 Conteúdo do modal estilizado
+export const QuantityModalContent = styled.div`
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  h2 {
+    font-size: 1.4rem;
+    color: #102C57;
+    margin-bottom: 12px;
+  }
+
+  p {
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 8px;
+  }
+`;
+
+// 🔹 Input estilizado para quantidade
+export const QuantityInput = styled.input`
+  width: 100%;
+  padding: 10px;
+  font-size: 1.2rem;
+  border: 2px solid #102C57;
+  border-radius: 8px;
+  text-align: center;
+  outline: none;
+  transition: 0.3s ease-in-out;
+  
+  &:focus {
+    border-color: #FF4500;
+    box-shadow: 0px 0px 8px rgba(255, 69, 0, 0.5);
+  }
 `;
 
 export const StyledButton = styled(ButtonTotal)`

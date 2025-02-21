@@ -182,7 +182,9 @@ CREATE TABLE pedidos (
     total DECIMAL(10,2) DEFAULT 0.00,
     taxa_entrega DECIMAL(10,2) DEFAULT 0.00, -- Taxa de entrega separada
     observacao TEXT, -- Campo para observações gerais do pedido
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    filial_id INT NOT NULL, -- ID da filial responsável pelo pedido
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pedidos_filial FOREIGN KEY (filial_id) REFERENCES filiais(id) ON DELETE CASCADE
 );
 
 -- Tabela de Itens do Pedido
@@ -190,15 +192,16 @@ CREATE TABLE pedido_itens (
     id SERIAL PRIMARY KEY,
     pedido_id INT REFERENCES pedidos(id) ON DELETE CASCADE,
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE,
-    quantidade INT NOT NULL CHECK (quantidade > 0), -- Quantidade não pode ser zero
+    quantidade DECIMAL(10,3) NOT NULL CHECK (quantidade > 0), -- ✅ Agora permite valores quebrados
     preco_unitario DECIMAL(10,2) NOT NULL,
     desconto DECIMAL(10,2) DEFAULT 0.00, -- Desconto por item
     total DECIMAL(10,2) NOT NULL, -- Total por item considerando desconto
     data_item DATE DEFAULT CURRENT_DATE, -- Data do item no pedido
     hora_item TIME DEFAULT CURRENT_TIME, -- Hora do item no pedido
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    filial_id INT NOT NULL, -- ID da filial associada ao item do pedido
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pedido_itens_filial FOREIGN KEY (filial_id) REFERENCES filiais(id) ON DELETE CASCADE
 );
-
 
 CREATE TABLE vendas_pagamento (
     id SERIAL PRIMARY KEY,

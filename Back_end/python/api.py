@@ -165,9 +165,9 @@ def loginUsers():
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # 🔹 Busca o usuário pelo nome OU email
+            # 🔹 Busca o usuário pelo nome OU email, agora incluindo `filial_id`
             cur.execute(
-                "SELECT id, nome, email, senha FROM usuarios WHERE email = %s OR nome = %s", 
+                "SELECT id, nome, email, senha, filial_id FROM usuarios WHERE email = %s OR nome = %s", 
                 (data["login"], data["login"])
             )
             user = cur.fetchone()
@@ -175,7 +175,7 @@ def loginUsers():
             if not user:
                 return jsonify({"error": "Usuário não encontrado!"}), 401
 
-            user_id, nome, email, senha_hash = user
+            user_id, nome, email, senha_hash, filial_id = user
 
             # 🔹 Verifica se a senha está corretamente hasheada
             if senha_hash is None:
@@ -184,12 +184,28 @@ def loginUsers():
             # 🔹 Verificação da senha com bcrypt
             if bcrypt.checkpw(data["senha"].encode("utf-8"), senha_hash.encode("utf-8")):
                 # Criando token JWT
-                token = create_access_token(identity={"user_id": user_id, "nome": nome, "email": email})
-                return jsonify({"message": "Login realizado com sucesso!", "token": token, "user": {"id": user_id, "nome": nome, "email": email}})
+                token = create_access_token(identity={
+                    "user_id": user_id, 
+                    "nome": nome, 
+                    "email": email,
+                    "filial_id": filial_id  # ✅ Retornando a filial do usuário
+                })
+                
+                return jsonify({
+                    "message": "Login realizado com sucesso!", 
+                    "token": token, 
+                    "user": {
+                        "id": user_id, 
+                        "nome": nome, 
+                        "email": email,
+                        "filial_id": filial_id  # ✅ Incluído no retorno
+                    }
+                })
             else:
                 return jsonify({"error": "Senha incorreta!"}), 401
     finally:
         conn.close()
+
         
 @app.route("/operadores/<int:id>", methods=["DELETE"])
 def deletar_operador(id):
@@ -419,23 +435,34 @@ def cancelar_oferta(id):
 
 @app.route("/pedidos_pendentes", methods=["GET"])
 def listar_pedidos_pendentes():
-    """Retorna a lista de pedidos ordenados pela data mais recente, incluindo os itens"""
+    """Retorna a lista de pedidos pendentes ordenados pela data mais recente, filtrando por filial se necessário"""
     conn = get_db_connection()
     pedidos = {}
 
+    # Obtendo o parâmetro da filial na query string (opcional)
+    filial_id = request.args.get("filial_id")
+
     try:
         with conn.cursor() as cur:
-            # Buscar todos os pedidos
-            cur.execute("""
-                SELECT p.id, p.cliente, p.data_pedido, p.status, p.total, p.taxa_entrega, p.observacao,
+            # Query base com possibilidade de filtro por filial
+            query = """
+                SELECT p.id, p.cliente, p.data_pedido, p.hora_pedido, p.status, p.total, p.taxa_entrega, p.observacao, p.filial_id,
                        pi.produto_id, prod.nome AS produto_nome, pi.quantidade, pi.preco_unitario, pi.total AS total_item
                 FROM pedidos p
                 LEFT JOIN pedido_itens pi ON p.id = pi.pedido_id
                 LEFT JOIN produtos prod ON pi.produto_id = prod.id
                 WHERE p.status = 'P'
-                ORDER BY p.data_pedido DESC
-            """)
-            
+            """
+            params = []
+
+            # Se filial_id for fornecido, filtra os pedidos dessa filial
+            if filial_id:
+                query += " AND p.filial_id = %s"
+                params.append(filial_id)
+
+            query += " ORDER BY p.data_pedido DESC, p.hora_pedido DESC"
+
+            cur.execute(query, params)
             rows = cur.fetchall()
             colnames = [desc[0] for desc in cur.description]
 
@@ -448,11 +475,13 @@ def listar_pedidos_pendentes():
                     pedidos[pedido_id] = {
                         "id": pedido_id,
                         "cliente": row_dict["cliente"],
-                        "data_pedido": row_dict["data_pedido"],
+                        "data_pedido": row_dict["data_pedido"].strftime('%Y-%m-%d'),  # ✅ Formata apenas a data
+                        "hora_pedido": row_dict["hora_pedido"].strftime('%H:%M:%S'),  # ✅ Formata apenas a hora
                         "status": row_dict["status"],
                         "total": row_dict["total"],
                         "taxa_entrega": row_dict["taxa_entrega"],
                         "observacao": row_dict["observacao"],
+                        "filial_id": row_dict["filial_id"],
                         "itens": []
                     }
 
@@ -538,35 +567,41 @@ def criar_pedido():
     """Cria um novo pedido e salva os itens"""
     data = request.get_json()
 
-    if "cliente" not in data or "total" not in data or "itens" not in data:
-        return jsonify({"error": "Campos obrigatórios: cliente, total e itens"}), 400
+    # ✅ Validação: Garante que os campos essenciais estejam presentes
+    required_fields = ["cliente", "total", "itens", "filial_id"]
+    missing_fields = [field for field in required_fields if field not in data]
+
+    if missing_fields:
+        return jsonify({"error": f"Campos obrigatórios ausentes: {', '.join(missing_fields)}"}), 400
 
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
             # 🔹 Insere o pedido na tabela `pedidos`
             cur.execute("""
-                INSERT INTO pedidos (cliente, total, taxa_entrega, observacao, status) 
-                VALUES (%s, %s, %s, %s, 'P') RETURNING id
+                INSERT INTO pedidos (cliente, total, taxa_entrega, observacao, status, filial_id) 
+                VALUES (%s, %s, %s, %s, 'P', %s) RETURNING id
             """, (
                 data["cliente"], 
                 float(data["total"]),  # ✅ Garante que é um número
                 float(data.get("taxa_entrega", 0)),  # ✅ Valor padrão 0.00
-                data.get("observacao", "")
+                data.get("observacao", ""),
+                int(data["filial_id"])  # ✅ Garante que é um número inteiro
             ))
             pedido_id = cur.fetchone()[0]  # Obtém o ID do pedido recém-criado
 
             # 🔹 Insere os itens do pedido
             for item in data["itens"]:
                 cur.execute("""
-                    INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total, filial_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     pedido_id,
                     int(item["produto_id"]),
-                    int(item["quantidade"]),
+                    float(item["quantidade"]),
                     float(item["preco_unitario"]),  # ✅ Conversão correta
-                    float(item["total"])
+                    float(item["total"]),
+                    int(data["filial_id"])  # ✅ Inclui o `filial_id` nos itens também
                 ))
 
             conn.commit()
@@ -581,86 +616,138 @@ def criar_pedido():
 
 @app.route("/pedidos/<int:id>", methods=["PUT"])
 def atualizar_pedido(id):
-    """Atualiza um pedido existente e seus itens"""
+    """Atualiza um pedido existente e seus itens apenas para a filial correspondente"""
     data = request.get_json()
 
-    # Valida os campos obrigatórios
-    if "cliente" not in data or "total" not in data or "itens" not in data:
-        return jsonify({"error": "Campos obrigatórios: cliente, total e itens"}), 400
+    # ✅ Valida os campos obrigatórios
+    required_fields = ["cliente", "total", "itens", "filial_id"]
+    missing_fields = [field for field in required_fields if field not in data]
+
+    if missing_fields:
+        return jsonify({"error": f"Campos obrigatórios ausentes: {', '.join(missing_fields)}"}), 400
+
+    filial_id = int(data["filial_id"])  # ✅ Converte `filial_id` para inteiro
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Atualiza os detalhes do pedido
+            # 🔹 Verifica se o pedido pertence à filial informada
+            cur.execute("SELECT id FROM pedidos WHERE id = %s AND filial_id = %s", (id, filial_id))
+            pedido_existente = cur.fetchone()
+            if not pedido_existente:
+                return jsonify({"error": "Pedido não encontrado ou não pertence à filial informada."}), 404
+
+            # 🔹 Atualiza os detalhes do pedido na filial correspondente
             cur.execute("""
                 UPDATE pedidos 
                 SET cliente=%s, total=%s, taxa_entrega=%s, observacao=%s 
-                WHERE id=%s
-            """, (data["cliente"], data["total"], data.get("taxa_entrega", 0.00), data.get("observacao", ""), id))
+                WHERE id=%s AND filial_id=%s
+            """, (
+                data["cliente"], 
+                float(data["total"]), 
+                float(data.get("taxa_entrega", 0.00)), 
+                data.get("observacao", ""), 
+                id, 
+                filial_id
+            ))
 
-            # Lista os produtos atuais do pedido
-            cur.execute("SELECT produto_id FROM pedido_itens WHERE pedido_id = %s", (id,))
+            # 🔹 Lista os produtos atuais do pedido na filial correspondente
+            cur.execute("""
+                SELECT produto_id FROM pedido_itens 
+                WHERE pedido_id = %s AND filial_id = %s
+            """, (id, filial_id))
             produtos_atuais = {row[0] for row in cur.fetchall()}  # Converte para um conjunto
 
             novos_produtos = {item["produto_id"] for item in data["itens"]}  # Produtos que vêm da requisição
 
-            # Remover produtos que não estão mais na lista de itens
+            # 🔹 Remover produtos que não estão mais na lista de itens
             produtos_removidos = produtos_atuais - novos_produtos
             if produtos_removidos:
-                cur.execute("DELETE FROM pedido_itens WHERE pedido_id = %s AND produto_id IN %s", (id, tuple(produtos_removidos)))
+                cur.execute("""
+                    DELETE FROM pedido_itens 
+                    WHERE pedido_id = %s AND filial_id = %s AND produto_id IN %s
+                """, (id, filial_id, tuple(produtos_removidos)))
 
-            # Atualizar ou inserir os produtos no pedido
+            # 🔹 Atualizar ou inserir os produtos no pedido
             for item in data["itens"]:
                 if item["produto_id"] in produtos_atuais:
                     # Atualiza o item existente
                     cur.execute("""
                         UPDATE pedido_itens 
                         SET quantidade=%s, preco_unitario=%s, total=%s 
-                        WHERE pedido_id=%s AND produto_id=%s
-                    """, (item["quantidade"], item["preco_unitario"], item["quantidade"] * item["preco_unitario"], id, item["produto_id"]))
+                        WHERE pedido_id=%s AND produto_id=%s AND filial_id=%s
+                    """, (
+                        item["quantidade"], 
+                        item["preco_unitario"], 
+                        item["quantidade"] * item["preco_unitario"], 
+                        id, 
+                        item["produto_id"], 
+                        filial_id
+                    ))
                 else:
                     # Insere um novo item no pedido
                     cur.execute("""
-                        INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total) 
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (id, item["produto_id"], item["quantidade"], item["preco_unitario"], item["quantidade"] * item["preco_unitario"]))
+                        INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, total, filial_id) 
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        id, 
+                        item["produto_id"], 
+                        item["quantidade"], 
+                        item["preco_unitario"], 
+                        item["quantidade"] * item["preco_unitario"], 
+                        filial_id
+                    ))
 
             conn.commit()  # Confirma todas as operações no banco de dados
 
         return jsonify({"message": "Pedido atualizado com sucesso!"})
 
     except Exception as e:
-        conn.rollback()  # Cancela a transação se ocorrer um erro
+        conn.rollback()  # ❌ Cancela a transação se ocorrer um erro
         print(f"Erro ao atualizar pedido: {e}")
         return jsonify({"error": str(e)}), 500
 
     finally:
-        conn.close()  # Fecha a conexão com o banco
+        conn.close()  # ✅ Fecha a conexão com o banco de dados
 
 @app.route("/pedidos/<int:id>", methods=["DELETE"])
 def cancelar_pedido(id):
-    """Cancela um pedido removendo-o do banco de dados junto com seus itens"""
+    """Cancela um pedido removendo-o do banco de dados junto com seus itens apenas se for da filial correta"""
+    data = request.get_json()
+    
+    # ✅ Valida se o `filial_id` foi informado
+    if "filial_id" not in data:
+        return jsonify({"error": "O campo 'filial_id' é obrigatório."}), 400
+
+    filial_id = int(data["filial_id"])  # Converte para inteiro
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Excluir primeiro os itens do pedido
-            cur.execute("DELETE FROM pedido_itens WHERE pedido_id = %s", (id,))
+            # 🔹 Verifica se o pedido pertence à filial informada
+            cur.execute("SELECT id FROM pedidos WHERE id = %s AND filial_id = %s", (id, filial_id))
+            pedido_existente = cur.fetchone()
             
-            # Agora, excluir o pedido
-            cur.execute("DELETE FROM pedidos WHERE id = %s", (id,))
+            if not pedido_existente:
+                return jsonify({"error": "Pedido não encontrado ou não pertence à filial informada."}), 404
 
-            conn.commit()  # Confirma as exclusões
+            # 🔹 Excluir primeiro os itens do pedido na filial correspondente
+            cur.execute("DELETE FROM pedido_itens WHERE pedido_id = %s AND filial_id = %s", (id, filial_id))
+            
+            # 🔹 Agora excluir o pedido
+            cur.execute("DELETE FROM pedidos WHERE id = %s AND filial_id = %s", (id, filial_id))
 
-        return jsonify({"message": "Pedido e seus itens foram cancelados!"})
+            conn.commit()  # ✅ Confirma as exclusões
+
+        return jsonify({"message": "Pedido e seus itens foram cancelados com sucesso!"})
 
     except Exception as e:
-        conn.rollback()  # Cancela a transação se ocorrer um erro
+        conn.rollback()  # ❌ Cancela a transação se ocorrer um erro
         print(f"Erro ao cancelar pedido: {e}")
         return jsonify({"error": str(e)}), 500
 
     finally:
-        conn.close()  # Fecha a conexão com o banco
-
+        conn.close()  # ✅ Fecha a conexão com o banco de dados
 
 # ------------------------------
 # 🚀 CRUD de Vendas
@@ -1130,14 +1217,23 @@ def cancelar_venda(id):
 
 @app.route("/filiais", methods=["GET"])
 def listar_filiais():
+    """Lista todas as filiais ou uma filial específica se filial_id for passado."""
+    filial_id = request.args.get("filial_id")  # 🔹 Obtém o parâmetro opcional
+
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM filiais")
+            if filial_id:
+                cur.execute("SELECT * FROM filiais WHERE id = %s", (filial_id,))
+            else:
+                cur.execute("SELECT * FROM filiais")
+
             filiais = cur.fetchall()
             colnames = [desc[0] for desc in cur.description]
             results = [dict(zip(colnames, row)) for row in filiais]
+
         return jsonify(results)  # Retorna os dados como JSON
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     

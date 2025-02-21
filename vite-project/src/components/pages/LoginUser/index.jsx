@@ -1,50 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import styled from "styled-components";
-
-const LoginContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f4f4f4;
-`;
-
-const LoginBox = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  width: 350px;
-  text-align: center;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 10px;
-  margin: 10px 0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-`;
-
-const Button = styled.button`
-  width: 100%;
-  padding: 10px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 10px;
-  &:hover {
-    background-color: #0056b3;
-  }
-`;
-
-const ErrorMessage = styled.p`
-  color: red;
-  font-size: 0.9rem;
-`;
+import { Button, Input, LoginBox, LoginContainer } from "./styles";
 
 const Users = () => {
   const [login, setLogin] = useState(""); // ✅ Corrigido para aceitar Nome ou Email
@@ -68,6 +24,9 @@ const Users = () => {
       if (response.ok) {
         localStorage.setItem("tokenUsers", data.token);
         localStorage.setItem("userName", data.user.nome); // 🔹 Armazena o nome do usuário
+        localStorage.setItem("filial_id_user",data.user.filial_id)
+
+        console.log(localStorage.getItem("filial_id_user"))
         navigate("/home"); // 🔹 Redireciona após login
       } else {
         setError(data.error || "Erro ao tentar fazer login");

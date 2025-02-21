@@ -12,6 +12,10 @@ import {
     PedidoInfo,
     InputTaxa,
     ObservacaoContainer,
+    FilialSelectContainer,
+    FilialSelect,
+    QuantityModalContent,
+    QuantityInput,
 } from "./styles";
 
 import {
@@ -34,7 +38,8 @@ import {
     ListaPedidosGrid,
     PedidoCard,
     ReceiptItem,
-    InputGroup
+    InputGroup,
+    ConfirmButton
 } from '../../../styles/utils'
 
 import api from "../../../api";
@@ -61,16 +66,88 @@ const Pedidos = () => {
     const [mensagemSucesso, setMensagemSucesso] = useState(""); // 🔹 Estado para mensagem de sucesso
     const [subtotal, setSubtotal] = useState(0);
     const [totalPedido, setTotalPedido] = useState(0);
+    const [filiais, setFiliais] = useState([]); // Estado para armazenar as filiais
+    const [filialSelecionada, setFilialSelecionada] = useState(""); // Estado para a filial selecionada
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
+    const [quantity, setQuantity] = useState(1);
+    const [selectedProduct, setSelectedProduct] = useState(null); // 
+
+    const [isQuantityModalOpenEdit, setIsQuantityModalOpenEdit] = useState(false);
+    const [selectedProductEdit, setSelectedProductEdit] = useState(null);
+    const [quantityEdit, setQuantityEdit] = useState(1);
+
+
+    const openQuantityModalEdit = (product) => {
+        setSelectedProductEdit(product);
+        setQuantityEdit(0); // Sempre começa com 1
+        setIsQuantityModalOpenEdit(true);
+    };
+
+    // 🔹 Confirma a quantidade e adiciona ao pedido
+    const confirmAddProductEdit = () => {
+        if (!selectedProductEdit) return;
+
+        adicionarProdutoAoPedido(selectedProductEdit, quantityEdit);
+        setIsQuantityModalOpenEdit(false);
+    };
+
+
+    // 🔹 Abre o modal para definir a quantidade
+    const openQuantityModal = (product) => {
+        setSelectedProduct(product);
+        setQuantity(1);
+        setIsQuantityModalOpen(true);
+    };
+
+    // 🔹 Confirma a quantidade e adiciona ao pedido
+    const confirmAddProduct = () => {
+        if (!selectedProduct) {
+            console.error("Erro: Nenhum produto selecionado!");
+            return;
+        }
+
+        // Converte a quantidade para número e adiciona ao pedido
+        addToPedido({ ...selectedProduct, quantity: parseFloat(quantity) });
+        setIsQuantityModalOpen(false);
+    };
+
+
+    // 🔹 Adiciona o produto ao pedido
+    const addToPedido = (product) => {
+        setPedido((prevPedido) => {
+            const existingProduct = prevPedido.find((item) => item.id === product.id);
+
+            if (existingProduct) {
+                return prevPedido.map((item) =>
+                    item.id === product.id
+                        ? { ...item, quantity: item.quantity + product.quantity } // 🔹 Soma quantidades corretamente
+                        : item
+                );
+            } else {
+                return [...prevPedido, { ...product, quantity: product.quantity }];
+            }
+        });
+    };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const filteredPedidos = pedidos.filter((pedido) =>
         pedido.id.toString().includes(searchTermPedidos) ||
         (pedido.cliente && pedido.cliente.toLowerCase().includes(searchTermPedidos.toLowerCase()))
     );
 
-
     const openAddProductModal = () => setIsAddProductModalOpen(true);
     const closeAddProductModal = () => setIsAddProductModalOpen(false);
 
+    const User = localStorage.getItem("userName")
+    const UserFilial = localStorage.getItem("filial_id_user")
 
     const filteredModalProducts = products.filter(
         (product) =>
@@ -79,9 +156,30 @@ const Pedidos = () => {
     );
 
     useEffect(() => {
+        carregarFiliais()
         carregarProdutos();
         carregarPedidos();
     }, []);
+
+    const carregarFiliais = () => {
+        if (!UserFilial) {
+            console.error("Erro: UserFilial não está definido!");
+            return;
+        }
+
+        const url = `/filiais?filial_id=${UserFilial}`; // Filtra pela filial do usuário
+
+        api.get(url)
+            .then((res) => {
+                setFiliais(res.data);
+
+                if (res.data.length > 0) {
+                    setFilialSelecionada(res.data[0].id); // Seleciona a primeira filial retornada
+                }
+            })
+            .catch((error) => console.error("Erro ao carregar Filiais:", error));
+    };
+
 
     const carregarProdutos = () => {
         api.get("/produtos")
@@ -100,13 +198,23 @@ const Pedidos = () => {
     };
 
     const editarQuantidade = (produtoId, novaQuantidade) => {
+        const quantidadeConvertida = parseFloat(novaQuantidade);
+
+        if (isNaN(quantidadeConvertida) || quantidadeConvertida <= 0) {
+            alert("Quantidade inválida! Insira um valor maior que 0.");
+            return;
+        }
+
         setPedidoSelecionado((prevPedido) => {
             const itensAtualizados = prevPedido.itens.map((item) =>
-                item.produto_id === produtoId ? { ...item, quantidade: novaQuantidade } : item
+                item.produto_id === produtoId
+                    ? { ...item, quantidade: quantidadeConvertida } // ✅ Agora permite frações
+                    : item
             );
             return { ...prevPedido, itens: itensAtualizados };
         });
     };
+
 
     const removerItem = (produtoId) => {
         setPedidoSelecionado((prevPedido) => {
@@ -125,8 +233,16 @@ const Pedidos = () => {
     const excluirPedido = async (id) => {
         if (!window.confirm("Tem certeza que deseja excluir este pedido?")) return;
 
+        if (!filialSelecionada) {
+            alert("Selecione uma filial antes de excluir o pedido.");
+            return;
+        }
+
         try {
-            await api.delete(`/pedidos/${id}`);
+            await api.delete(`/pedidos/${id}`, {
+                data: { filial_id: filialSelecionada }, // 🔹 Passando a filial na requisição
+            });
+
             alert("Pedido excluído com sucesso!");
 
             // Remove o pedido da lista sem precisar recarregar a página
@@ -144,19 +260,6 @@ const Pedidos = () => {
             product.nome.toLowerCase().includes(searchTerm.toLowerCase()) &&
             (selectedCategory === "" || product.categoria_nome === selectedCategory)
     );
-
-    const addToPedido = (product) => {
-        setPedido((prevPedido) => {
-            const existingProduct = prevPedido.find((item) => item.id === product.id);
-            if (existingProduct) {
-                return prevPedido.map((item) =>
-                    item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            } else {
-                return [...prevPedido, { ...product, quantity: 1 }];
-            }
-        });
-    };
 
     const increaseQuantity = (id) => {
         setPedido((prevPedido) =>
@@ -209,18 +312,20 @@ const Pedidos = () => {
         setIsModalOpen(false);
     };
 
-    const adicionarProdutoAoPedido = (produto) => {
+    const adicionarProdutoAoPedido = (produto, quantidade) => {
         setPedidoSelecionado((prevPedido) => {
             const produtoExistente = prevPedido.itens.find((item) => item.produto_id === produto.id);
 
             let novoPedido;
-
             if (produtoExistente) {
                 novoPedido = {
                     ...prevPedido,
                     itens: prevPedido.itens.map((item) =>
                         item.produto_id === produto.id
-                            ? { ...item, quantidade: item.quantidade + 1 }
+                            ? {
+                                ...item,
+                                quantidade: parseFloat(item.quantidade) + parseFloat(quantidade) // ✅ Garante valores decimais corretos
+                            }
                             : item
                     ),
                 };
@@ -231,10 +336,10 @@ const Pedidos = () => {
                         ...prevPedido.itens,
                         {
                             produto_id: produto.id,
-                            produto_nome: produto.nome, // 🔹 Garante que o nome seja salvo corretamente
-                            quantidade: 1,
-                            preco_unitario: produto.preco_venda
-                        }
+                            produto_nome: produto.nome,
+                            quantidade: parseFloat(quantidade), // ✅ Permite valores decimais
+                            preco_unitario: parseFloat(produto.preco_venda), // ✅ Garante conversão correta
+                        },
                     ],
                 };
             }
@@ -242,38 +347,36 @@ const Pedidos = () => {
             return novoPedido;
         });
 
-        // 🔹 Define a mensagem de sucesso
-        setMensagemSucesso(`✅ ${produto.nome} foi adicionado ao pedido!`);
-
-        // 🔹 Remove a mensagem após 2 segundos
+        setMensagemSucesso(`✅ ${quantidade} de ${produto.nome} foi adicionado ao pedido!`);
         setTimeout(() => setMensagemSucesso(""), 2000);
     };
 
 
-
     const salvarAlteracoesPedido = async () => {
         if (!pedidoSelecionado) return;
-
+    
         const pedidoAtualizado = {
+            filial_id: filialSelecionada, // ✅ Garante que a filial seja enviada
             cliente: pedidoSelecionado.cliente,
-            total: Number(
+            total: parseFloat(
                 pedidoSelecionado.itens.reduce(
-                    (total, item) => total + item.preco_unitario * item.quantidade,
+                    (total, item) => total + parseFloat(item.preco_unitario) * parseFloat(item.quantidade),
                     0
                 ).toFixed(2)
             ),
-            taxa_entrega: Number(pedidoSelecionado.taxa_entrega), // 🔹 Atualizando taxa
+            taxa_entrega: parseFloat(pedidoSelecionado.taxa_entrega),
             observacao: pedidoSelecionado.observacao,
             itens: pedidoSelecionado.itens.map((item) => ({
                 produto_id: item.produto_id,
-                quantidade: item.quantidade,
-                preco_unitario: Number(item.preco_unitario),
+                quantidade: parseFloat(item.quantidade),
+                preco_unitario: parseFloat(item.preco_unitario),
+                filial_id: filialSelecionada, // ✅ Agora, cada item tem a filial associada
             })),
         };
-
+    
         try {
             const response = await api.put(`/pedidos/${pedidoSelecionado.id}`, pedidoAtualizado);
-
+    
             if (response.status === 200) {
                 alert("Pedido atualizado com sucesso!");
                 carregarPedidos();
@@ -286,6 +389,7 @@ const Pedidos = () => {
             console.error("Erro ao atualizar pedido:", error);
         }
     };
+    
 
     const finalizarPedido = async () => {
         if (isSubmitting) return;
@@ -293,6 +397,7 @@ const Pedidos = () => {
         setIsSubmitting(true);
 
         const pedidoData = {
+            filial_id: filialSelecionada,
             cliente: ClienteNome, // Pode ser modificado para pegar do usuário
             total: totalPedido,
             taxa_entrega: parseFloat(taxaAdicional || 0),
@@ -316,6 +421,7 @@ const Pedidos = () => {
                 setObservacao("");
                 setTaxaAdicional(0);
                 setIsModalOpen(false);
+                carregarPedidos()
             } else {
                 console.error("Erro no response:", response); // 🔹 Log detalhado do erro
                 alert(`Erro ao criar pedido: ${response.data?.error || "Erro desconhecido"}`);
@@ -337,6 +443,22 @@ const Pedidos = () => {
             <Container>
                 <HeaderContainer>
                     <Title>Pedidos</Title>
+
+                    {/* 🔹 Seletor de Filial */}
+                    <FilialSelectContainer>
+                        <span>Filial:</span>
+                        <FilialSelect
+                            value={filialSelecionada}
+                            onChange={(e) => setFilialSelecionada(e.target.value)}
+                        >
+                            {filiais.map((filial) => (
+                                <option key={filial.id} value={filial.id}>
+                                    {filial.nome}
+                                </option>
+                            ))}
+                        </FilialSelect>
+                    </FilialSelectContainer>
+
                     <ButtonContainer>
                         <IconButtonHeader onClick={openListaPedidos}>
                             <FaList />
@@ -383,11 +505,33 @@ const Pedidos = () => {
                                         />
                                     )}
                                     <p>{product.nome}</p>
-                                    <p><strong>R$ {product.preco_venda}</strong></p>
-                                    <IconButtonHeader onClick={() => addToPedido(product)}>Selecionar</IconButtonHeader>
+                                    <p><strong>R$ {product.preco_venda} / {product.unidade === "Kg" ? "Kg" : "Un"}</strong></p>
+                                    <IconButtonHeader onClick={() => openQuantityModal(product)}>Selecionar</IconButtonHeader>
                                 </ProductCard>
                             ))}
                         </ProductsGrid>
+
+
+                        {isQuantityModalOpen && (
+                            <ModalOverlay>
+                                <QuantityModalContent>
+                                    <CloseButton onClick={() => setIsQuantityModalOpen(false)}>×</CloseButton>
+                                    <h2>Definir Quantidade</h2>
+                                    <p><strong>{selectedProduct?.nome}</strong></p>
+                                    <p>Preço: R$ {selectedProduct?.preco_venda} / {selectedProduct?.unidade === "Kg" ? "Kg" : "Un"}</p>
+
+                                    <QuantityInput
+                                        type="number"
+                                        step={selectedProduct?.unidade === "Kg" ? "0.1" : "1"} // Permite fração para Kg
+                                        min="0.1"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                    />
+
+                                    <ConfirmButton onClick={confirmAddProduct}>Confirmar</ConfirmButton>
+                                </QuantityModalContent>
+                            </ModalOverlay>
+                        )}
                     </LeftSection>
 
                     <RightSection>
@@ -532,7 +676,9 @@ const Pedidos = () => {
 
 
 
-                <OperatorInfo>Usuario</OperatorInfo>
+                <OperatorInfo>Usuario: {User.toUpperCase()} | Data:{" "}
+                    {currentTime.toLocaleDateString()} | Hora:{" "}
+                    {currentTime.toLocaleTimeString()}</OperatorInfo>
             </Container>
             {isListaPedidosOpen && (
                 <ModalOverlay>
@@ -563,6 +709,8 @@ const Pedidos = () => {
                                             <p><strong>Taxa:</strong> R$ {pedido.taxa_entrega || "0.00"}</p>
                                             <p className="pedido-status"><strong>Status:</strong> {pedido.status === "P" ? "Pendente" : "Finalizado"}</p>
 
+                                            <p className="pedido-info">Data: {pedido.data_pedido}</p>
+                                            <p className="pedido-info">Hora: {pedido.hora_pedido}</p>
                                             {/* 🔹 Botões de Ação */}
                                             <ModalButtons>
                                                 <IconButtonHeader onClick={() => openPedidoDetalhes(pedido)}>
@@ -637,7 +785,8 @@ const Pedidos = () => {
                                     {pedidoSelecionado.itens.map((item) => (
                                         <tr key={item.produto_id}>
                                             <td>{item.produto_nome || item.nome || "Nome não encontrado"}</td>
-                                            <td>{item.quantidade}</td>
+                                            <td>{Number(item.quantidade).toFixed(3)}</td>
+
                                             <td>R$ {(item.preco_unitario * item.quantidade).toFixed(2)}</td>
                                             <td>
                                                 <IconButton onClick={() => editarQuantidade(item.produto_id, item.quantidade + 1)}>+</IconButton>
@@ -666,9 +815,6 @@ const Pedidos = () => {
                             <IconButtonHeader onClick={salvarAlteracoesPedido}>
                                 <FaCheck /> Salvar Alterações
                             </IconButtonHeader>
-                            <IconButtonHeader onClick={closePedidoDetalhes}>
-                                <FaTimes /> Fechar
-                            </IconButtonHeader>
                             <IconButtonHeader onClick={openAddProductModal}>
                                 <FaPlus /> Adicionar Produtos
                             </IconButtonHeader>
@@ -684,10 +830,9 @@ const Pedidos = () => {
                         <CloseButton onClick={closeAddProductModal}>×</CloseButton>
                         <h2>Adicionar Produtos</h2>
 
-                        {/* 🔹 Exibe a mensagem de sucesso */}
                         {mensagemSucesso && <p style={{ color: "green", fontWeight: "bold" }}>{mensagemSucesso}</p>}
 
-                        {/* 🔹 Campo de Pesquisa */}
+                        {/* Campo de Pesquisa */}
                         <SearchInputModal
                             type="text"
                             placeholder="Pesquisar produto..."
@@ -695,7 +840,7 @@ const Pedidos = () => {
                             onChange={(e) => setSearchProductTerm(e.target.value)}
                         />
 
-                        {/* 🔹 Filtro por Categoria */}
+                        {/* Filtro por Categoria */}
                         <CategoryFilterContainer>
                             <IconButtonHeader
                                 active={selectedModalCategory === ""}
@@ -714,7 +859,7 @@ const Pedidos = () => {
                             ))}
                         </CategoryFilterContainer>
 
-                        {/* 🔹 Grid de Produtos */}
+                        {/* Lista de Produtos */}
                         <ProductsGrid>
                             {filteredModalProducts.map((product) => (
                                 <ModalProductCard key={product.id}>
@@ -722,14 +867,42 @@ const Pedidos = () => {
                                         <img src={`data:image/jpeg;base64,${product.imagem}`} alt={product.nome} />
                                     )}
                                     <p>{product.nome}</p>
-                                    <p><strong>R$ {product.preco_venda}</strong></p>
-                                    <IconButtonHeader onClick={() => adicionarProdutoAoPedido(product)}>Adicionar</IconButtonHeader>
+                                    <p><strong>R$ {product.preco_venda} / {product.unidade === "Kg" ? "Kg" : "Un"}</strong></p>
+                                    <IconButtonHeader
+                                        onClick={() => openQuantityModalEdit(product)}
+                                    >
+                                        Selecionar
+                                    </IconButtonHeader>
                                 </ModalProductCard>
                             ))}
                         </ProductsGrid>
                     </ModalContent>
+                    {/* 🔹 Modal para Definir Quantidade */}
+                    {isQuantityModalOpenEdit && (
+                        <ModalOverlay>
+                            <QuantityModalContent>
+                                <CloseButton onClick={() => setIsQuantityModalOpenEdit(false)}>×</CloseButton>
+                                <h2>Definir Quantidade</h2>
+                                <p><strong>{selectedProduct?.nome}</strong></p>
+                                <p>Preço: R$ {selectedProduct?.preco_venda} / {selectedProduct?.unidade === "Kg" ? "Kg" : "Un"}</p>
+
+                                <QuantityInput
+                                    type="number"
+                                    step={selectedProduct?.unidade === "Kg" ? "0.1" : "1"} // Permite fração para Kg
+                                    min="0.1"
+                                    value={quantityEdit}
+                                    onChange={(e) => setQuantityEdit(parseFloat(e.target.value))}
+                                />
+
+                                <ConfirmButton onClick={confirmAddProductEdit}>Confirmar</ConfirmButton>
+                            </QuantityModalContent>
+                        </ModalOverlay>
+                    )}
+
                 </ModalOverlay>
             )}
+
+
 
         </>
     );
