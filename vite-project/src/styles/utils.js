@@ -122,7 +122,7 @@ export const ReceiptContainer = styled.div`
   padding: 15px;
   border-radius: 8px;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  width: 500px; /* 🔹 Largura fixa para manter padrão */
+  width: 100%;
   height: 450px; /* 🔹 Altura fixa para garantir visual equilibrado */
   overflow-y: auto;
   border: 2px dashed rgba(0, 0, 0, 0.2); /* Estilo cupom */

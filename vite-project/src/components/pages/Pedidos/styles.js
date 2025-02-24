@@ -230,7 +230,7 @@ export const ProductsGrid = styled.div`
   gap: 10px;
   width: 100%;
   overflow-y: auto;
-  max-height: 500px;
+  height: 100%; /* 🔹 Ocupa toda a altura disponível */
   padding: 10px;
   justify-items: center;
 
@@ -250,7 +250,7 @@ export const ProductsGrid = styled.div`
 
 export const ProductCard = styled.div`
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 250, 250, 1)); 
-  width: 210px;
+  width: 180px;
   height: 250px; /* Ajuste para espaçamento ideal */
   padding: 20px;
   border-radius: 14px;
