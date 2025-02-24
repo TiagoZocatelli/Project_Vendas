@@ -641,15 +641,13 @@ export const Notification = styled.div`
   }
 `;
 
-
-
 export const SettingsIcon = styled.div`
   position: absolute;
   top: 30px;
-  right: 60px;
+  right: 90px;
   cursor: pointer;
   font-size: 2rem;
-  color: rgba(255, 132, 0, 1); /* Dourado para destacar */
+  color: rgb(255, 255, 255); /* Dourado para destacar */
   transition: transform 0.2s ease-in-out;
 
   &:hover {

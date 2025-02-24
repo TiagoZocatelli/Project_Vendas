@@ -52,6 +52,24 @@ export const ButtonGroup = styled.div`
   justify-content: center;
 `;
 
+export const HeaderCart = styled.div`
+  display: flex;
+  justify-content: space-between;
+  background: #102C57;
+  color: white;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 0.8rem;
+
+  span {
+    flex: 1; /* Distribui os elementos igualmente */
+    text-align: center;
+  }
+`;
+
 export const SectionTitle = styled.h3`
   font-size: 2.3rem;
   font-weight: bold;
@@ -227,7 +245,7 @@ export const CategoryFilterButton = styled.button`
 export const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* 🔹 Mantém colunas proporcionais */
-  gap: 10px;
+  gap: 16px;
   width: 100%;
   overflow-y: auto;
   height: 100%; /* 🔹 Ocupa toda a altura disponível */
@@ -250,9 +268,9 @@ export const ProductsGrid = styled.div`
 
 export const ProductCard = styled.div`
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 250, 250, 1)); 
-  width: 180px;
-  height: 250px; /* Ajuste para espaçamento ideal */
-  padding: 20px;
+  width: 200px;
+  height: 280px; /* Ajuste para espaçamento ideal */
+  padding: 12px;
   border-radius: 14px;
   text-align: center;
   box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15); /* Sombra mais refinada */
@@ -431,7 +449,7 @@ export const DescontTaxaInput = styled(TaxaInput)`
 `;
 
 export const ModalProductCard = styled(ProductCard)`
-    height: 240px;
+    height: 280px;
     
     p {
       color: #000;

@@ -20,10 +20,11 @@ CREATE TABLE estoque_filial (
     id SERIAL PRIMARY KEY,
     filial_id INT REFERENCES filiais(id) ON DELETE CASCADE, -- Relacionado à filial
     produto_id INT REFERENCES produtos(id) ON DELETE CASCADE, -- Relacionado ao produto
-    quantidade TYPE NUMERIC(10, 2);                  -- Quantidade em estoque
-    estoque_minimo INTEGER DEFAULT 0,                       -- Estoque mínimo
-    UNIQUE (filial_id, produto_id)                          -- Garante que não haja duplicação
+    quantidade DECIMAL(10, 2),                  -- Quantidade em estoque
+    estoque_minimo INTEGER DEFAULT 0,           -- Estoque mínimo
+    UNIQUE (filial_id, produto_id)              -- Garante que não haja duplicação
 );
+
 
 
 CREATE TABLE categorias (
@@ -37,7 +38,7 @@ CREATE TABLE classes (
     nome VARCHAR(255) NOT NULL,     -- Nome da classe (ex.: 350ML, 1L, etc.)
     descricao TEXT,                 -- Descrição adicional da classe (opcional)
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Data de criação
-    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- Data de atualização
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP-- Data de atualização
 );
 
 
@@ -79,9 +80,8 @@ CREATE TABLE filiais (
     estado VARCHAR(2),                    -- Sigla do estado (ex: SP, RJ)
     ativo BOOLEAN DEFAULT TRUE,           -- Status da filial
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 
 
 CREATE TABLE clientes (
@@ -203,22 +203,6 @@ CREATE TABLE pedido_itens (
     CONSTRAINT fk_pedido_itens_filial FOREIGN KEY (filial_id) REFERENCES filiais(id) ON DELETE CASCADE
 );
 
-CREATE TABLE vendas_pagamento (
-    id SERIAL PRIMARY KEY,
-    venda_id INT REFERENCES vendas(id) ON DELETE CASCADE,
-    forma_pagamento_id INT REFERENCES formas_pagamento(id) ON DELETE RESTRICT,
-    valor DECIMAL(10,2) NOT NULL
-);
-
--- Tabela de Importação de Pedidos
-CREATE TABLE importacoes (
-    id SERIAL PRIMARY KEY,
-    arquivo_nome VARCHAR(255) NOT NULL,
-    status VARCHAR(20) DEFAULT 'Em Processamento', -- "Em Processamento", "Concluído", "Erro"
-    data_importacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
 CREATE TABLE vendas (
     id SERIAL PRIMARY KEY,
     pedido_id INT REFERENCES pedidos(id) ON DELETE SET NULL,
@@ -231,10 +215,6 @@ CREATE TABLE vendas (
     troco DECIMAL(10,2) DEFAULT 0.00,  -- 🔹 Agora incluído
     status VARCHAR(20) DEFAULT 'Concluída'
 );
-
-
-
-
 
 CREATE TABLE formas_pagamento (
     id SERIAL PRIMARY KEY,
@@ -257,4 +237,3 @@ CREATE TABLE vendas_itens (
 CREATE INDEX idx_pedidos_data ON pedidos(data_pedido);
 CREATE INDEX idx_produtos_nome ON produtos(nome);
 CREATE INDEX idx_ofertas_data ON ofertas(data_inicio, data_fim);
-CREATE INDEX idx_pagamentos_pedido ON pagamentos(pedido_id);

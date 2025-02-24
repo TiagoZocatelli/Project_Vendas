@@ -123,7 +123,7 @@ export const ReceiptContainer = styled.div`
   border-radius: 8px;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
   width: 100%;
-  height: 450px; /* 🔹 Altura fixa para garantir visual equilibrado */
+  height: 700px; /* 🔹 Altura fixa para garantir visual equilibrado */
   overflow-y: auto;
   border: 2px dashed rgba(0, 0, 0, 0.2); /* Estilo cupom */
   position: relative;
@@ -145,41 +145,40 @@ export const ReceiptContainer = styled.div`
 
 export const ReceiptItem = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   background: #f9f9f9;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 8px;
+  padding: 6px; /* Reduzindo o padding */
+  border-radius: 5px;
+  margin-bottom: 5px; /* Menor espaçamento entre itens */
   border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
 
   .info {
     display: flex;
-    flex-direction: column;
-    width: 60%;
-  }
-
-  .nome {
-    font-weight: bold;
-    font-size: 0.9rem;
-    color: #333;
-  }
-
-  .preco {
-    font-size: 0.8rem;
-    color: #777;
-  }
-
-  .quantidade {
-    display: flex;
+    flex: 4; /* Ocupa mais espaço */
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
   }
 
-  .remover {
-    margin-left: 10px;
+  span {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem; /* Reduzindo o tamanho da fonte */
+  }
+
+  .actions {
+    display: flex;
+    flex: 1;
+    justify-content: space-around;
+    gap: 3px; /* Reduzindo o espaçamento entre botões */
+  }
+
+  button {
+    font-size: 0.8rem; /* Botões menores */
+    padding: 4px 6px; /* Ajustando padding */
   }
 `;
+
 
 export const FixedFooter = styled.div`
   position: sticky;
@@ -283,7 +282,7 @@ export const ModalPedidosContent = styled.div`
   width: 90vw; /* 🔹 Ocupa 70% da largura da tela */
   max-width: 1500px; /* 🔹 Define um limite máximo */
   height: 90vh; /* 🔹 Altura ajustada */
-  max-height: 700px; /* 🔹 Evita que fique muito grande */
+  max-height: 800px; /* 🔹 Evita que fique muito grande */
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -315,7 +314,7 @@ export const PedidoCard = styled.div`
   cursor: pointer;
   transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
   min-height: 100px; /* 🔹 Mantém um tamanho uniforme */
-  width: 300px; /* 🔹 Aumentamos a largura */
+  width: 280px; /* 🔹 Aumentamos a largura */
   gap: 8px; /* 🔹 Melhor espaçamento interno */
 
   &:hover {
@@ -398,7 +397,7 @@ export const InputGroup = styled.div`
 export const ListaPedidosGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* 🔹 Mantemos espaçamento uniforme */
-  gap: 16px; /* 🔹 Aumentamos o espaçamento entre os cartões */
+  gap: 32px;
   width: 100%;
   max-height: 800px;
   padding: 15px;
@@ -409,7 +408,7 @@ export const ListaPedidosGrid = styled.div`
 export const ListaPedidosScrollable = styled.div`
   flex-grow: 1;
   overflow-y: auto; /* 🔹 Ativa a rolagem apenas na lista */
-  padding: 10px; /* 🔹 Impede que o modal fique muito alto */
+  padding: 20px; /* 🔹 Impede que o modal fique muito alto */
 
     /* Scroll suave para evitar rolagem abrupta */
     &::-webkit-scrollbar {
@@ -433,7 +432,7 @@ export const IconButtonHeader = styled.button`
   background: rgb(255, 132, 0); /* Laranja Sofisticado */
   border: none;
   border-radius: 6px;
-  padding: 8px 16px;
+  padding: 8px 8px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: bold;

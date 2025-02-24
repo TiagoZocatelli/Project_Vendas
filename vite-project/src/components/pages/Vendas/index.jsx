@@ -79,6 +79,7 @@ import {
 
 
 import { useNavigate } from "react-router-dom";
+import { HeaderCart } from "../Pedidos/styles";
 
 const PDV = () => {
 
@@ -139,6 +140,8 @@ const PDV = () => {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
   const [importedOrderId, setImportedOrderId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const filteredOrders = pendingOrders.filter((pedido) =>
     pedido.id.toString().includes(searchTerm) ||
@@ -177,15 +180,14 @@ const PDV = () => {
     setImportedOrderId(pedido.id); // Salva o ID do pedido importado
 
     setIsOrderModalOpen(false);
+
+
+    setHighlightedProduct({ nome: "Nenhum produto selecionado" })
   };
 
   useEffect(() => {
     setRemainingTotal(totalGeneral - totalPaid);
   }, [totalGeneral, totalPaid]);
-
-
-
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const navigate = useNavigate()
 
@@ -318,26 +320,6 @@ const PDV = () => {
       showMessage("Itens removidos com sucesso!", "success");
       closeConfirmCancelItemModal();
     }
-  };
-
-  const finalizeSale = () => {
-    if (remainingTotal > 0) {
-      showMessage(
-        "Ainda há um saldo restante. Finalize os pagamentos antes de concluir.", "error");
-      return;
-    }
-
-    showMessage(
-      `Compra finalizada com sucesso!\nMétodos de Pagamento:\n${paymentHistory
-        .map((p) => `${p.method}: R$ ${p.amount.toFixed(2)}`)
-        .join("\n")}`, "success");
-    setCart([]);
-    setTotalGeneral(0);
-    setRemainingTotal(0);
-    setPaymentMethod("");
-    setPaymentAmount(0);
-    setPaymentHistory([]);
-    setIsPaymentModalOpen(false);
   };
 
   const handlePartialPayment = () => {
@@ -613,7 +595,38 @@ const PDV = () => {
   };
 
 
+  const increaseQuantity = (id) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              quantity: item.quantity + 1, 
+              total: Number(item.total) + Number(item.preco_venda), // Certifica que total é numérico
+            }
+          : item
+      )
+    );
+  };
 
+
+  const decreaseQuantity = (id) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === id && item.quantity > 1
+          ? {
+              ...item,
+              quantity: item.quantity - 1, // Diminui a quantidade
+              total: Number(item.total) - Number(item.preco_venda), // Atualiza o total corretamente
+            }
+          : item
+      )
+    );
+  };
+  
+  
+  
+  
   const addToCart = () => {
     if (!highlightedProduct || !highlightedProduct.id) {
       showMessage("Selecione um produto antes de adicionar.", "error");
@@ -688,7 +701,7 @@ const PDV = () => {
           <LeftSection>
             <ProductImageContainer>
               <ProductImage
-                src={highlightedProduct?.imagem ? `data:image/jpeg;base64,${highlightedProduct.imagem}` : "https://via.placeholder.com/150"}
+                src={highlightedProduct?.imagem ? `data:image/jpeg;base64,${highlightedProduct.imagem}` : "https://via.placeholder.com/150px"}
                 alt={highlightedProduct?.nome || "Produto"}
               />
             </ProductImageContainer>
@@ -768,23 +781,26 @@ const PDV = () => {
           <RightSection>
             <SectionTitle>🛒 Itens Adicionados</SectionTitle>
             <ReceiptContainer>
+              <HeaderCart>
+              <span>Nome </span>
+              <span>Codigo de Barras</span>
+              <span>Preço</span>
+              <span>Quantidade</span>
+              <span>Acões</span>
+              </HeaderCart>
               {cart.map((product) => (
                 <ReceiptItem key={product.id}>
                   <div className="info">
                     <span className="nome">{product.nome}</span>
                     <span className="codigo-barras">{product.codigo_barras}</span>
-                    <span className="preco">R$ {product.total.toFixed(2)}</span>
+                    <span className="preco">R$ {(Number(product.total) || 0).toFixed(2)}</span>
+                    <span className="preco">{product.quantity}</span>
                   </div>
-                  <div className="quantidade">
-                    <IconButton onClick={() => decreaseQuantity(product.id)}>➖</IconButton>
-                    <span>{product.quantity}</span>
-                    <IconButton onClick={() => increaseQuantity(product.id)}>➕</IconButton>
-                  </div>
-                  <div className="remover">
-                    <IconButton onClick={() => setCart(cart.filter((p) => p.id !== product.id))}>
+                  <IconButtonHeader onClick={() => increaseQuantity(product.id)}>➕</IconButtonHeader>
+                  <IconButtonHeader onClick={() => decreaseQuantity(product.id)}>➖</IconButtonHeader>
+                  <IconButtonHeader onClick={() => setCart(cart.filter((p) => p.id !== product.id))}>
                       ❌
-                    </IconButton>
-                  </div>
+                    </IconButtonHeader>
                 </ReceiptItem>
               ))}
             </ReceiptContainer>
